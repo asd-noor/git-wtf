@@ -4,8 +4,7 @@ go = "1.26.3"
 [env]
 MISE_GO_SET_GOROOT = true
 GOPATH = "/Users/noor/.local/gopath/1.26.3"
-OUTDIR = "build"
-TMP_DIR = "/Users/noor/tmp"
+OUTDIR = "{{config_root}}/build"
 BIN = "git-wtf"
 
 [task_config]

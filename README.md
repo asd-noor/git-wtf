@@ -37,7 +37,6 @@ The project is designed to be mostly stateless: Git remains the source of truth.
 ### With mise
 
 ```sh
-mise run build
 mise run install
 ```
 

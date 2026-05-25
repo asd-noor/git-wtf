@@ -6,5 +6,6 @@ bin="${OUTDIR:-build}/${BIN:-git-wtf}"
 
 install -Dm755 "$bin" "$HOME/.local/bin/$(basename "$bin")"
 
-#vim:ft=bash:
+echo "Make sure you have $HOME/.local/bin in your PATH"
 
+#vim:ft=bash:
