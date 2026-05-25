@@ -1,4 +1,4 @@
-module git-wtf
+module git-vine
 
 go 1.26.3
 

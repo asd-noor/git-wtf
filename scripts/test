@@ -3,10 +3,8 @@
 #MISE depends = ["build"]
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-GWT="$PROJECT_ROOT/${OUTDIR:-build}/${BIN:-git-wtf}"
-PROJ="${TMP_DIR:-$HOME/tmp}/git-wtf-e2e-test"
+GWT="$OUTDIR/$BIN"
+PROJ="${TMP_DIR:-$HOME/tmp}/git-vine-e2e-test"
 
 mkdir -p "$(dirname "$PROJ")"
 rm -rf "$PROJ"
@@ -41,7 +39,7 @@ echo "=== init fresh ==="
 "$GWT" init fresh "$PROJ"
 check_dir "$PROJ/.git"; check_dir "$PROJ/.wtf/develop"; check_nodir "$PROJ/.bare"
 check_br "$PROJ" master; check_br "$PROJ/.wtf/develop" develop
-grep -q 'git-wtf' "$PROJ/.git/config"       && pass "config written"  || fail "config missing"
+grep -q 'git-vine' "$PROJ/.git/config"       && pass "config written"  || fail "config missing"
 grep -q '\.wtf'   "$PROJ/.git/info/exclude" && pass ".wtf in exclude" || fail "exclude missing"
 cd "$PROJ"
 
@@ -107,7 +105,7 @@ pass "release finish after clean succeeded"
 
 echo ""
 echo "=== init adopt ==="
-PROJ2="${TMP_DIR:-$HOME/tmp}/git-wtf-adopt-test"
+PROJ2="${TMP_DIR:-$HOME/tmp}/git-vine-adopt-test"
 rm -rf "$PROJ2"
 git init -b master "$PROJ2"
 git -C "$PROJ2" commit --allow-empty -m "init"
@@ -117,7 +115,7 @@ git -C "$PROJ2" checkout master
 check_dir "$PROJ2/.wtf/develop"
 check_br  "$PROJ2"              master
 check_br  "$PROJ2/.wtf/develop" develop
-grep -q 'git-wtf' "$PROJ2/.git/config" && pass "adopt: config written" || fail "adopt: config missing"
+grep -q 'git-vine' "$PROJ2/.git/config" && pass "adopt: config written" || fail "adopt: config missing"
 
 echo ""
 echo "=== final worktrees ==="

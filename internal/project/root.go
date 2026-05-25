@@ -1,4 +1,4 @@
-// Package project provides project-level utilities for git-wtf.
+// Package project provides project-level utilities for git-vine.
 package project
 
 import (
@@ -8,7 +8,7 @@ import (
 )
 
 // FindRoot traverses upward from currentDir until it finds a directory
-// containing a .wtf subdirectory (the git-wtf project root).
+// containing a .wtf subdirectory (the git-vine project root).
 func FindRoot(currentDir string) (string, error) {
 	dir := currentDir
 	for {
@@ -18,7 +18,7 @@ func FindRoot(currentDir string) (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("not inside a git-wtf project (no .wtf directory found)")
+			return "", fmt.Errorf("not inside a git-vine project (no .wtf directory found)")
 		}
 		dir = parent
 	}

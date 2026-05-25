@@ -5,7 +5,7 @@ go = "1.26.3"
 MISE_GO_SET_GOROOT = true
 GOPATH = "/Users/noor/.local/gopath/1.26.3"
 OUTDIR = "{{config_root}}/build"
-BIN = "git-wtf"
+BIN = "git-vine"
 
 [task_config]
 includes = [

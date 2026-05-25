@@ -2,7 +2,7 @@
 #MISE description="Install the Binary"
 #MISE depends = ["build"]
 
-bin="${OUTDIR:-build}/${BIN:-git-wtf}"
+bin="${OUTDIR:-build}/${BIN:-git-vine}"
 
 install -Dm755 "$bin" "$HOME/.local/bin/$(basename "$bin")"
 

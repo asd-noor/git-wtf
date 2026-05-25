@@ -7,13 +7,13 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
-	"git-wtf/internal/git"
-	"git-wtf/internal/project"
+	"git-vine/internal/git"
+	"git-vine/internal/project"
 )
 
 var initFreshCmd = &cobra.Command{
 	Use:   "fresh [project-dir]",
-	Short: "Create a new git-wtf project from scratch",
+	Short: "Create a new git-vine project from scratch",
 	Long: `Initializes a git repository, creates an initial commit on master,
 adds a develop worktree under .wtf/, and excludes .wtf/ from git
 tracking via .git/info/exclude.
@@ -94,7 +94,7 @@ func runInitFresh(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("\u2713 Initialized new git-wtf project at %s\n", projectDir)
+	fmt.Printf("\u2713 Initialized new git-vine project at %s\n", projectDir)
 	fmt.Printf("  master (root)  |  develop \u2192 .wtf/develop/\n")
 	return nil
 }

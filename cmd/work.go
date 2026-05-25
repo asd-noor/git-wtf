@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"git-wtf/internal/git"
-	"git-wtf/internal/project"
+	"git-vine/internal/git"
+	"git-vine/internal/project"
 )
 
 var workCmd = &cobra.Command{
@@ -96,7 +96,7 @@ func runWorkFinish(_ *cobra.Command, args []string) error {
 			return fmt.Errorf(
 				"merge in develop is still in progress\n"+
 					"  cd %s && git add . && git merge --continue\n"+
-					"  then run: git-wtf work finish %s --continue",
+					"  then run: git-vine work finish %s --continue",
 				developDir, name)
 		}
 		// Verify the merge actually landed before removing the branch.

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git-wtf/internal/git"
-	"git-wtf/internal/project"
+	"git-vine/internal/git"
+	"git-vine/internal/project"
 )
 
 // mustCwd returns the current working directory or panics.
@@ -64,7 +64,7 @@ func addToExclude(projectRoot, pattern string) error {
 
 // cleanupWorktree removes the worktree directory and deletes the branch.
 // mergeDir is the worktree from which the branch deletion is verified (typically
-// .wtf/develop, the final merge target in all git-wtf flows). Running
+// .wtf/develop, the final merge target in all git-vine flows). Running
 // git branch -d from there ensures the safety check is against the correct HEAD.
 func cleanupWorktree(root, mergeDir, worktreeName, branchName string) error {
 	if _, err := git.Cmd(root, "worktree", "remove", worktreeName); err != nil {
@@ -103,8 +103,8 @@ func conflictErr(targetName, targetDir, cmdType, name string) error {
 			"  Resolve it manually:\n"+
 			"  1. cd %s\n"+
 			"  2. fix conflicts, then: git add . && git merge --continue\n"+
-			"  3. run: git-wtf %s finish %s --continue\n\n"+
-			"  Or to abort: git-wtf %s finish %s --abort",
+			"  3. run: git-vine %s finish %s --continue\n\n"+
+			"  Or to abort: git-vine %s finish %s --abort",
 		targetName,
 		targetDir,
 		cmdType, name,
@@ -123,7 +123,7 @@ func continueFinishWithTag(root, tag, cmdType, branchName, worktreeName string, 
 		return fmt.Errorf(
 			"master merge still in progress\n"+
 				"  cd %s && git add . && git merge --continue\n"+
-				"  then run: git-wtf %s finish %s --continue",
+				"  then run: git-vine %s finish %s --continue",
 			masterDir, cmdType, tag)
 	}
 	if merging, err := git.IsMerging(developDir); err != nil {
@@ -132,7 +132,7 @@ func continueFinishWithTag(root, tag, cmdType, branchName, worktreeName string, 
 		return fmt.Errorf(
 			"develop merge still in progress\n"+
 				"  cd %s && git add . && git merge --continue\n"+
-				"  then run: git-wtf %s finish %s --continue",
+				"  then run: git-vine %s finish %s --continue",
 			developDir, cmdType, tag)
 	}
 

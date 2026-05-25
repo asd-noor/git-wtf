@@ -7,13 +7,13 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
-	"git-wtf/internal/git"
-	"git-wtf/internal/project"
+	"git-vine/internal/git"
+	"git-vine/internal/project"
 )
 
 var initAdoptCmd = &cobra.Command{
 	Use:   "adopt [dir]",
-	Short: "Convert an existing local git clone into a git-wtf project",
+	Short: "Convert an existing local git clone into a git-vine project",
 	Long: `Checks out the master branch at the project root, adds a develop
 worktree under .wtf/, and excludes .wtf/ from git tracking via
 .git/info/exclude.
@@ -58,7 +58,7 @@ func runInitAdopt(_ *cobra.Command, args []string) error {
 
 	// 2. Guard: don't adopt an already-adopted project.
 	if _, err := os.Stat(filepath.Join(projectDir, ".wtf")); err == nil {
-		return fmt.Errorf("already a git-wtf project (.wtf already exists)")
+		return fmt.Errorf("already a git-vine project (.wtf already exists)")
 	}
 
 	// 3. Guard: working tree must be clean before checkout.
@@ -96,7 +96,7 @@ func runInitAdopt(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("\u2713 Adopted git-wtf project at %s\n", projectDir)
+	fmt.Printf("\u2713 Adopted git-vine project at %s\n", projectDir)
 	fmt.Printf("  master \u2192 %s (root)  |  develop \u2192 %s (.wtf/develop/)\n", bs.Master, bs.Develop)
 	return nil
 }

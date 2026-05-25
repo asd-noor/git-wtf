@@ -1,4 +1,4 @@
-// Package cmd wires the Cobra command tree for git-wtf.
+// Package cmd wires the Cobra command tree for git-vine.
 package cmd
 
 import (
@@ -9,11 +9,11 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "git-wtf",
+	Use:   "git-vine",
 	Short: "Git worktree flow manager",
-	Long: `git-wtf manages Git worktrees with a strict Git Flow branching model.
+	Long: `git-vine manages Git worktrees with a strict Git Flow branching model.
 
-Place the binary in your PATH and invoke it as 'git wtf' via Git's
+Place the binary in your PATH and invoke it as 'git vine' via Git's
 custom-command discovery (git-<name> → git <name>).`,
 	SilenceUsage:  true,
 	SilenceErrors: true,

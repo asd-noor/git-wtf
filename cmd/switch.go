@@ -8,23 +8,23 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
-	"git-wtf/internal/git"
-	"git-wtf/internal/project"
+	"git-vine/internal/git"
+	"git-vine/internal/project"
 )
 
 var switchCmd = &cobra.Command{
 	Use:   "switch [branch]",
-	Short: "Print the path of a git-wtf worktree",
+	Short: "Print the path of a git-vine worktree",
 	Long: `Prints the absolute path to the named worktree, or shows an
 interactive picker when no argument is given.
 
 Intended for shell integration — wrap in a function to change directory:
 
   Bash / Zsh:
-    gws() { local p; p="$(git-wtf switch "$@")" && cd "$p"; }
+    gws() { local p; p="$(git-vine switch "$@")" && cd "$p"; }
 
   Fish:
-    function gws; cd (git-wtf switch $argv); end`,
+    function gws; cd (git-vine switch $argv); end`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runSwitch,
 }

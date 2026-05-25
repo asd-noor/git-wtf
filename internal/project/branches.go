@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"git-wtf/internal/git"
+	"git-vine/internal/git"
 
 	"github.com/charmbracelet/huh"
 )
@@ -132,12 +132,12 @@ func containsStr(slice []string, s string) bool {
 }
 
 // WriteBranches persists the master and develop branch names to the local
-// git config under [git-wtf "branch"]. Called once at init time.
+// git config under [git-vine "branch"]. Called once at init time.
 func WriteBranches(projectRoot, master, develop string) error {
-	if err := git.SetConfig(projectRoot, "git-wtf.branch.master", master); err != nil {
+	if err := git.SetConfig(projectRoot, "git-vine.branch.master", master); err != nil {
 		return fmt.Errorf("saving master branch config: %w", err)
 	}
-	if err := git.SetConfig(projectRoot, "git-wtf.branch.develop", develop); err != nil {
+	if err := git.SetConfig(projectRoot, "git-vine.branch.develop", develop); err != nil {
 		return fmt.Errorf("saving develop branch config: %w", err)
 	}
 	return nil
@@ -146,13 +146,13 @@ func WriteBranches(projectRoot, master, develop string) error {
 // ReadBranches reads the master and develop branch names from the local
 // git config. Returns a clear error if the project has not been initialised.
 func ReadBranches(projectRoot string) (*BranchSet, error) {
-	master, err := git.GetConfig(projectRoot, "git-wtf.branch.master")
+	master, err := git.GetConfig(projectRoot, "git-vine.branch.master")
 	if err != nil {
-		return nil, fmt.Errorf("project not initialised \u2014 run 'git-wtf init' first: %w", err)
+		return nil, fmt.Errorf("project not initialised \u2014 run 'git-vine init' first: %w", err)
 	}
-	develop, err := git.GetConfig(projectRoot, "git-wtf.branch.develop")
+	develop, err := git.GetConfig(projectRoot, "git-vine.branch.develop")
 	if err != nil {
-		return nil, fmt.Errorf("develop branch not configured \u2014 run 'git-wtf init' first: %w", err)
+		return nil, fmt.Errorf("develop branch not configured \u2014 run 'git-vine init' first: %w", err)
 	}
 	return &BranchSet{Master: master, Develop: develop}, nil
 }

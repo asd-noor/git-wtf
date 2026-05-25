@@ -1,22 +1,22 @@
 ---
-name: git-wtf
+name: git-vine
 description: >
   Manage Git worktrees following a strict Git Flow branching model using the
-  git-wtf CLI. Use this skill when the user wants to start, finish, or switch
+  git-vine CLI. Use this skill when the user wants to start, finish, or switch
   between work/feature branches, release branches, or hotfix branches in a
-  git-wtf project, or when they want to initialise a new or existing repository
-  as a git-wtf project.
+  git-vine project, or when they want to initialise a new or existing repository
+  as a git-vine project.
 license: GPL-3.0
-compatibility: Requires git and the git-wtf binary in PATH. Run as `git-wtf` or `git wtf`.
+compatibility: Requires git and the git-vine binary in PATH. Run as `git-vine` or `git vine`.
 metadata:
   author: Asaduzzaman Noor
   version: "1.0.1"
-  repository: https://github.com/asd-noor/git-wtf
+  repository: https://github.com/asd-noor/git-vine
 ---
 
-# git-wtf Skill
+# git-vine Skill
 
-`git-wtf` combines Git worktrees with a Git Flow branching model. The project
+`git-vine` combines Git worktrees with a Git Flow branching model. The project
 root is the **master** working tree. All other worktrees live under `.wtf/`.
 
 ## Project layout
@@ -35,7 +35,7 @@ myproject/
 Branch names are persisted in `.git/config`:
 
 ```ini
-[git-wtf "branch"]
+[git-vine "branch"]
     master  = master   # or main, trunk, etc.
     develop = develop  # or dev, etc.
 ```
@@ -45,7 +45,7 @@ Branch names are persisted in `.git/config`:
 ### New project
 
 ```sh
-git wtf init fresh [project-dir]   # prompts if omitted
+git vine init fresh [project-dir]   # prompts if omitted
 ```
 
 Creates `git init`, sets master branch, creates `.wtf/develop`, writes config.
@@ -54,7 +54,7 @@ Creates `git init`, sets master branch, creates `.wtf/develop`, writes config.
 
 ```sh
 cd my-project
-git wtf init adopt                 # prompts for dir, defaults to .
+git vine init adopt                 # prompts for dir, defaults to .
 ```
 
 Checks out master at root, adds `.wtf/develop`, writes config.
@@ -63,56 +63,56 @@ The working tree must be clean before adoption.
 ## Work (feature) branches
 
 ```sh
-git wtf work start <name>          # creates .wtf/work/<name> from develop
-git wtf work finish <name>         # merges into develop, removes worktree
-git wtf work finish <name> --continue  # resume after resolving conflict
-git wtf work finish <name> --abort     # abort in-progress merge
+git vine work start <name>          # creates .wtf/work/<name> from develop
+git vine work finish <name>         # merges into develop, removes worktree
+git vine work finish <name> --continue  # resume after resolving conflict
+git vine work finish <name> --abort     # abort in-progress merge
 ```
 
 ## Release branches
 
 ```sh
-git wtf release start <tag>        # creates .wtf/release/<tag> from develop
-git wtf release finish <tag>       # merges into master, tags, merges into develop
-git wtf release finish <tag> --continue
-git wtf release finish <tag> --abort
+git vine release start <tag>        # creates .wtf/release/<tag> from develop
+git vine release finish <tag>       # merges into master, tags, merges into develop
+git vine release finish <tag> --continue
+git vine release finish <tag> --abort
 ```
 
 ## Hotfix branches
 
 ```sh
-git wtf hotfix start <tag>         # creates .wtf/hotfix/<tag> from master
-git wtf hotfix finish <tag>        # merges into master, tags, merges into develop
-git wtf hotfix finish <tag> --continue
-git wtf hotfix finish <tag> --abort
+git vine hotfix start <tag>         # creates .wtf/hotfix/<tag> from master
+git vine hotfix finish <tag>        # merges into master, tags, merges into develop
+git vine hotfix finish <tag> --continue
+git vine hotfix finish <tag> --abort
 ```
 
 ## Switching between worktrees
 
 ```sh
-git wtf switch                     # interactive picker (renders to stderr)
-git wtf switch develop
-git wtf switch master
-git wtf switch my-feature          # expands to work/my-feature
-git wtf switch work/my-feature
-git wtf switch 1.0.0               # tries release/1.0.0 then hotfix/1.0.0
+git vine switch                     # interactive picker (renders to stderr)
+git vine switch develop
+git vine switch master
+git vine switch my-feature          # expands to work/my-feature
+git vine switch work/my-feature
+git vine switch 1.0.0               # tries release/1.0.0 then hotfix/1.0.0
 ```
 
 Shell integration to `cd` on select:
 
 ```sh
 # Bash / Zsh
-gws() { local p; p="$(git-wtf switch "$@")" && cd "$p"; }
+gws() { local p; p="$(git-vine switch "$@")" && cd "$p"; }
 
 # Fish
-function gws; cd (git-wtf switch $argv); end
+function gws; cd (git-vine switch $argv); end
 ```
 
 ## Pruning stale worktrees
 
 ```sh
-git wtf prune             # removes worktrees whose remote branch was deleted
-git wtf prune --dry-run   # preview without making changes
+git vine prune             # removes worktrees whose remote branch was deleted
+git vine prune --dry-run   # preview without making changes
 ```
 
 Requires an `origin` remote. Skips dirty worktrees.
@@ -120,12 +120,12 @@ Requires an `origin` remote. Skips dirty worktrees.
 ## Other commands
 
 ```sh
-git wtf version           # print version string
+git vine version           # print version string
 ```
 
 ## Conflict recovery
 
-When a merge conflicts, git-wtf exits with a structured message:
+When a merge conflicts, git-vine exits with a structured message:
 
 ```
 ✗ Merge conflict in develop
@@ -133,9 +133,9 @@ When a merge conflicts, git-wtf exits with a structured message:
   Resolve it manually:
   1. cd /path/to/.wtf/develop
   2. fix conflicts, then: git add . && git merge --continue
-  3. run: git-wtf work finish <name> --continue
+  3. run: git-vine work finish <name> --continue
 
-  Or to abort: git-wtf work finish <name> --abort
+  Or to abort: git-vine work finish <name> --abort
 ```
 
 The `--continue` flag re-checks that the merge actually landed (via
@@ -146,7 +146,7 @@ The `--continue` flag re-checks that the merge actually landed (via
 - **Dirty check**: `finish` commands and `init adopt` block on staged or
   modified tracked files. Untracked files are intentionally ignored.
 - **Branch names**: hardcoding `master`/`develop` is wrong; always read from
-  `.git/config` via `git config --local git-wtf.branch.master` etc.
+  `.git/config` via `git config --local git-vine.branch.master` etc.
 - **Duplicate guard**: `start` checks both the worktree directory and the
   branch ref. An orphaned branch (worktree removed but branch not deleted)
   is caught with a clear recovery hint.
