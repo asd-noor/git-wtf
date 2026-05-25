@@ -64,7 +64,7 @@ func addToExclude(projectRoot, pattern string) error {
 
 // cleanupWorktree removes the worktree directory and deletes the branch.
 // mergeDir is the worktree from which the branch deletion is verified (typically
-// .wtf/develop, the final merge target in all git-vine flows). Running
+// .git-vine/develop, the final merge target in all git-vine flows). Running
 // git branch -d from there ensures the safety check is against the correct HEAD.
 func cleanupWorktree(root, mergeDir, worktreeName, branchName string) error {
 	if _, err := git.Cmd(root, "worktree", "remove", worktreeName); err != nil {

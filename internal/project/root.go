@@ -8,17 +8,17 @@ import (
 )
 
 // FindRoot traverses upward from currentDir until it finds a directory
-// containing a .wtf subdirectory (the git-vine project root).
+// containing a .git-vine subdirectory (the git-vine project root).
 func FindRoot(currentDir string) (string, error) {
 	dir := currentDir
 	for {
-		wtfPath := filepath.Join(dir, ".wtf")
+		wtfPath := filepath.Join(dir, ".git-vine")
 		if info, err := os.Stat(wtfPath); err == nil && info.IsDir() {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("not inside a git-vine project (no .wtf directory found)")
+			return "", fmt.Errorf("not inside a git-vine project (no .git-vine directory found)")
 		}
 		dir = parent
 	}

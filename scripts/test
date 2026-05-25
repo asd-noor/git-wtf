@@ -37,21 +37,21 @@ echo ""
 
 echo "=== init fresh ==="
 "$GWT" init fresh "$PROJ"
-check_dir "$PROJ/.git"; check_dir "$PROJ/.wtf/develop"; check_nodir "$PROJ/.bare"
-check_br "$PROJ" master; check_br "$PROJ/.wtf/develop" develop
+check_dir "$PROJ/.git"; check_dir "$PROJ/.git-vine/develop"; check_nodir "$PROJ/.bare"
+check_br "$PROJ" master; check_br "$PROJ/.git-vine/develop" develop
 grep -q 'git-vine' "$PROJ/.git/config"       && pass "config written"  || fail "config missing"
-grep -q '\.wtf'   "$PROJ/.git/info/exclude" && pass ".wtf in exclude" || fail "exclude missing"
+grep -q '\.git-vine'   "$PROJ/.git/info/exclude" && pass ".git-vine in exclude" || fail "exclude missing"
 cd "$PROJ"
 
 echo ""
 echo "=== work start ==="
 "$GWT" work start my-feature
-check_dir "$PROJ/.wtf/work/my-feature"; check_br "$PROJ/.wtf/work/my-feature" "work/my-feature"
+check_dir "$PROJ/.git-vine/work/my-feature"; check_br "$PROJ/.git-vine/work/my-feature" "work/my-feature"
 expect_err "already exists" "$GWT" work start my-feature
 
 echo ""
 echo "=== switch (while work worktree is live) ==="
-"$GWT" switch develop         | grep -q '\.wtf/develop'   && pass "switch develop"  || fail "switch develop"
+"$GWT" switch develop         | grep -q '\.git-vine/develop'   && pass "switch develop"  || fail "switch develop"
 "$GWT" switch master          | grep -q "$PROJ$"          && pass "switch master"   || fail "switch master"
 "$GWT" switch my-feature      | grep -q 'work/my-feature' && pass "switch bare"     || fail "switch bare"
 "$GWT" switch work/my-feature | grep -q 'work/my-feature' && pass "switch full"     || fail "switch full"
@@ -59,48 +59,48 @@ expect_err "no worktree" "$GWT" switch nonexistent
 
 echo ""
 echo "=== work finish ==="
-echo "feature" > "$PROJ/.wtf/work/my-feature/feature.txt"
-git -C "$PROJ/.wtf/work/my-feature" add feature.txt
-git -C "$PROJ/.wtf/work/my-feature" commit -m "add feature"
+echo "feature" > "$PROJ/.git-vine/work/my-feature/feature.txt"
+git -C "$PROJ/.git-vine/work/my-feature" add feature.txt
+git -C "$PROJ/.git-vine/work/my-feature" commit -m "add feature"
 "$GWT" work finish my-feature
-check_nodir "$PROJ/.wtf/work/my-feature"
-log_has "$PROJ/.wtf/develop" "add feature"
+check_nodir "$PROJ/.git-vine/work/my-feature"
+log_has "$PROJ/.git-vine/develop" "add feature"
 
 echo ""
 echo "=== release start/finish ==="
 "$GWT" release start 1.0.0
-check_dir "$PROJ/.wtf/release/1.0.0"; check_br "$PROJ/.wtf/release/1.0.0" "release/1.0.0"
+check_dir "$PROJ/.git-vine/release/1.0.0"; check_br "$PROJ/.git-vine/release/1.0.0" "release/1.0.0"
 "$GWT" switch 1.0.0 | grep -q 'release/1.0.0' && pass "switch release by tag" || fail "switch release"
 expect_err "already exists" "$GWT" release start 1.0.0
-echo "relnotes" > "$PROJ/.wtf/release/1.0.0/notes.txt"
-git -C "$PROJ/.wtf/release/1.0.0" add notes.txt
-git -C "$PROJ/.wtf/release/1.0.0" commit -m "prep 1.0.0"
+echo "relnotes" > "$PROJ/.git-vine/release/1.0.0/notes.txt"
+git -C "$PROJ/.git-vine/release/1.0.0" add notes.txt
+git -C "$PROJ/.git-vine/release/1.0.0" commit -m "prep 1.0.0"
 "$GWT" release finish 1.0.0
-check_nodir "$PROJ/.wtf/release/1.0.0"
+check_nodir "$PROJ/.git-vine/release/1.0.0"
 git -C "$PROJ" tag | grep -q '1.0.0' && pass "tag 1.0.0" || fail "tag 1.0.0 missing"
-log_has "$PROJ/.wtf/develop" "prep 1.0.0"
+log_has "$PROJ/.git-vine/develop" "prep 1.0.0"
 
 echo ""
 echo "=== hotfix start/finish ==="
 "$GWT" hotfix start 1.0.1
-check_dir "$PROJ/.wtf/hotfix/1.0.1"; check_br "$PROJ/.wtf/hotfix/1.0.1" "hotfix/1.0.1"
+check_dir "$PROJ/.git-vine/hotfix/1.0.1"; check_br "$PROJ/.git-vine/hotfix/1.0.1" "hotfix/1.0.1"
 "$GWT" switch 1.0.1 | grep -q 'hotfix/1.0.1' && pass "switch hotfix by tag" || fail "switch hotfix"
-echo "fix" > "$PROJ/.wtf/hotfix/1.0.1/fix.txt"
-git -C "$PROJ/.wtf/hotfix/1.0.1" add fix.txt
-git -C "$PROJ/.wtf/hotfix/1.0.1" commit -m "fix critical bug"
+echo "fix" > "$PROJ/.git-vine/hotfix/1.0.1/fix.txt"
+git -C "$PROJ/.git-vine/hotfix/1.0.1" add fix.txt
+git -C "$PROJ/.git-vine/hotfix/1.0.1" commit -m "fix critical bug"
 "$GWT" hotfix finish 1.0.1
-check_nodir "$PROJ/.wtf/hotfix/1.0.1"
+check_nodir "$PROJ/.git-vine/hotfix/1.0.1"
 git -C "$PROJ" tag | grep -q '1.0.1' && pass "tag 1.0.1" || fail "tag 1.0.1 missing"
-log_has "$PROJ/.wtf/develop" "fix critical bug"
+log_has "$PROJ/.git-vine/develop" "fix critical bug"
 
 echo ""
 echo "=== dirty check ==="
 "$GWT" release start 2.0.0
-echo "modified" >> "$PROJ/.wtf/develop/feature.txt"  # modify tracked file
+echo "modified" >> "$PROJ/.git-vine/develop/feature.txt"  # modify tracked file
 expect_err "uncommitted" "$GWT" release finish 2.0.0
-git -C "$PROJ/.wtf/develop" checkout -- .
+git -C "$PROJ/.git-vine/develop" checkout -- .
 "$GWT" release finish 2.0.0
-check_nodir "$PROJ/.wtf/release/2.0.0"
+check_nodir "$PROJ/.git-vine/release/2.0.0"
 pass "release finish after clean succeeded"
 
 echo ""
@@ -112,9 +112,9 @@ git -C "$PROJ2" commit --allow-empty -m "init"
 git -C "$PROJ2" checkout -b develop
 git -C "$PROJ2" checkout master
 "$GWT" init adopt "$PROJ2"
-check_dir "$PROJ2/.wtf/develop"
+check_dir "$PROJ2/.git-vine/develop"
 check_br  "$PROJ2"              master
-check_br  "$PROJ2/.wtf/develop" develop
+check_br  "$PROJ2/.git-vine/develop" develop
 grep -q 'git-vine' "$PROJ2/.git/config" && pass "adopt: config written" || fail "adopt: config missing"
 
 echo ""

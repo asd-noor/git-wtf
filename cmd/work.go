@@ -48,7 +48,7 @@ func runWorkStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, ".wtf", "work", name)
+	worktreeDir := filepath.Join(root, ".git-vine", "work", name)
 	branchName := "work/" + name
 
 	if _, err := os.Stat(worktreeDir); err == nil {
@@ -64,7 +64,7 @@ func runWorkStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := git.Cmd(root, "worktree", "add", ".wtf/work/"+name, "-b", branchName, bs.Develop); err != nil {
+	if _, err := git.Cmd(root, "worktree", "add", ".git-vine/work/"+name, "-b", branchName, bs.Develop); err != nil {
 		return fmt.Errorf("creating work worktree: %w", err)
 	}
 
@@ -79,10 +79,10 @@ func runWorkFinish(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, ".wtf", "work", name)
-	developDir := filepath.Join(root, ".wtf", "develop")
+	worktreeDir := filepath.Join(root, ".git-vine", "work", name)
+	developDir := filepath.Join(root, ".git-vine", "develop")
 	branchName := "work/" + name
-	worktreeName := ".wtf/work/" + name
+	worktreeName := ".git-vine/work/" + name
 
 	if workAbort {
 		return abortMerge(developDir)

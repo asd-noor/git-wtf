@@ -17,7 +17,7 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "Remove worktrees whose remote branch has been deleted",
 	Long: `Runs git fetch --prune origin, then removes every ephemeral worktree
-under .wtf/work/, .wtf/release/, or .wtf/hotfix/ whose corresponding remote
+under .git-vine/work/, .git-vine/release/, or .git-vine/hotfix/ whose corresponding remote
 branch no longer exists (typically because the PR was merged).
 
 Dirty worktrees are skipped with a warning — commit or stash changes first.
@@ -35,7 +35,7 @@ func init() {
 // pruneCandidate holds a worktree identified for potential removal.
 type pruneCandidate struct {
 	path         string // absolute path to the worktree directory
-	worktreePath string // relative path from root, e.g. .wtf/work/my-feature
+	worktreePath string // relative path from root, e.g. .git-vine/work/my-feature
 	branchName   string // branch name, e.g. work/my-feature
 	dirty        bool
 	unmerged     bool // not yet in develop or master history
@@ -47,7 +47,7 @@ func runPrune(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	developDir := filepath.Join(root, ".wtf", "develop")
+	developDir := filepath.Join(root, ".git-vine", "develop")
 
 	// 1. Require an origin remote — prune is meaningless without one.
 	if _, err := git.Cmd(root, "remote", "get-url", "origin"); err != nil {
@@ -76,7 +76,7 @@ func runPrune(_ *cobra.Command, _ []string) error {
 	skipped := 0
 	pruned := 0
 
-	// 5. Identify candidates: ephemeral worktrees under .wtf/<namespace>/<name>
+	// 5. Identify candidates: ephemeral worktrees under .git-vine/<namespace>/<name>
 	// whose remote branch no longer exists.
 	var candidates []pruneCandidate
 	for _, wt := range worktrees {
@@ -85,9 +85,9 @@ func runPrune(_ *cobra.Command, _ []string) error {
 			continue
 		}
 
-		// Expect exactly three slash-separated parts: .wtf / namespace / name.
+		// Expect exactly three slash-separated parts: .git-vine / namespace / name.
 		parts := strings.SplitN(filepath.ToSlash(rel), "/", 3)
-		if len(parts) != 3 || parts[0] != ".wtf" {
+		if len(parts) != 3 || parts[0] != ".git-vine" {
 			continue
 		}
 		namespace := parts[1]
@@ -163,7 +163,7 @@ func runPrune(_ *cobra.Command, _ []string) error {
 
 		// Verify develop worktree exists before deleting the branch from it.
 		if _, err := os.Stat(developDir); err != nil {
-			fmt.Printf("  \u2717 .wtf/develop not found \u2014 worktree removed but branch %s was not deleted (recover: git branch -D %s)\n", c.branchName, c.branchName)
+			fmt.Printf("  \u2717 .git-vine/develop not found \u2014 worktree removed but branch %s was not deleted (recover: git branch -D %s)\n", c.branchName, c.branchName)
 			skipped++
 			continue
 		}

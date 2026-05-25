@@ -48,7 +48,7 @@ func runHotfixStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, ".wtf", "hotfix", tag)
+	worktreeDir := filepath.Join(root, ".git-vine", "hotfix", tag)
 	branchName := "hotfix/" + tag
 
 	if _, err := os.Stat(worktreeDir); err == nil {
@@ -64,7 +64,7 @@ func runHotfixStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := git.Cmd(root, "worktree", "add", ".wtf/hotfix/"+tag, "-b", branchName, bs.Master); err != nil {
+	if _, err := git.Cmd(root, "worktree", "add", ".git-vine/hotfix/"+tag, "-b", branchName, bs.Master); err != nil {
 		return fmt.Errorf("creating hotfix worktree: %w", err)
 	}
 
@@ -79,11 +79,11 @@ func runHotfixFinish(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	hotfixDir := filepath.Join(root, ".wtf", "hotfix", tag)
+	hotfixDir := filepath.Join(root, ".git-vine", "hotfix", tag)
 	masterDir := root
-	developDir := filepath.Join(root, ".wtf", "develop")
+	developDir := filepath.Join(root, ".git-vine", "develop")
 	branchName := "hotfix/" + tag
-	worktreeName := ".wtf/hotfix/" + tag
+	worktreeName := ".git-vine/hotfix/" + tag
 
 	if hotfixAbort {
 		if merging, err := git.IsMerging(masterDir); err != nil {

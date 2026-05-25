@@ -17,7 +17,7 @@ The project is designed to be mostly stateless: Git remains the source of truth.
 ## Highlights
 
 - Project root is the master working tree — existing files stay untouched
-- All other worktrees live under `.wtf/` (git-ignored)
+- All other worktrees live under `.git-vine/` (git-ignored)
 - Two initialization modes:
   - `init fresh`
   - `init adopt`
@@ -199,7 +199,7 @@ picker. With a branch name, prints the path directly.
 
 ```sh
 git-vine switch                # interactive picker
-git-vine switch develop        # print .wtf/develop path
+git-vine switch develop        # print .git-vine/develop path
 git-vine switch work/my-feature
 git-vine switch my-feature     # short form: tries work/<name> automatically
 ```
@@ -229,13 +229,13 @@ When built with the project build script, the version is injected from git metad
 `git-vine` uses a bare repository anchor and a conventional directory hierarchy:
 
 - `.git/` — git repository
-- `.wtf/` — git-ignored, holds all other worktrees
+- `.git-vine/` — git-ignored, holds all other worktrees
   - `develop/` — permanent develop worktree
   - `work/<name>/` — ephemeral feature worktrees
   - `release/<tag>/` — ephemeral release worktrees
   - `hotfix/<tag>/` — ephemeral hotfix worktrees
 
-The project root itself is the master working tree. `.wtf/` is excluded via
+The project root itself is the master working tree. `.git-vine/` is excluded via
 `.git/info/exclude` and never appears in `git status`.
 
 ## Development

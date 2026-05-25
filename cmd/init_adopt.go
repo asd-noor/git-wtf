@@ -15,7 +15,7 @@ var initAdoptCmd = &cobra.Command{
 	Use:   "adopt [dir]",
 	Short: "Convert an existing local git clone into a git-vine project",
 	Long: `Checks out the master branch at the project root, adds a develop
-worktree under .wtf/, and excludes .wtf/ from git tracking via
+worktree under .git-vine/, and excludes .git-vine/ from git tracking via
 .git/info/exclude.
 
 If no directory is given you will be prompted (defaults to current directory).
@@ -57,8 +57,8 @@ func runInitAdopt(_ *cobra.Command, args []string) error {
 	}
 
 	// 2. Guard: don't adopt an already-adopted project.
-	if _, err := os.Stat(filepath.Join(projectDir, ".wtf")); err == nil {
-		return fmt.Errorf("already a git-vine project (.wtf already exists)")
+	if _, err := os.Stat(filepath.Join(projectDir, ".git-vine")); err == nil {
+		return fmt.Errorf("already a git-vine project (.git-vine already exists)")
 	}
 
 	// 3. Guard: working tree must be clean before checkout.
@@ -81,13 +81,13 @@ func runInitAdopt(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("checking out %s: %w", bs.Master, err)
 	}
 
-	// 6. Add develop worktree under .wtf/.
-	if err := addWorktree(projectDir, ".wtf/develop", bs.Develop); err != nil {
+	// 6. Add develop worktree under .git-vine/.
+	if err := addWorktree(projectDir, ".git-vine/develop", bs.Develop); err != nil {
 		return err
 	}
 
-	// 7. Exclude .wtf/ locally without modifying .gitignore.
-	if err := addToExclude(projectDir, ".wtf"); err != nil {
+	// 7. Exclude .git-vine/ locally without modifying .gitignore.
+	if err := addToExclude(projectDir, ".git-vine"); err != nil {
 		return err
 	}
 
@@ -97,6 +97,6 @@ func runInitAdopt(_ *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("\u2713 Adopted git-vine project at %s\n", projectDir)
-	fmt.Printf("  master \u2192 %s (root)  |  develop \u2192 %s (.wtf/develop/)\n", bs.Master, bs.Develop)
+	fmt.Printf("  master \u2192 %s (root)  |  develop \u2192 %s (.git-vine/develop/)\n", bs.Master, bs.Develop)
 	return nil
 }

@@ -70,8 +70,8 @@ func runSwitch(_ *cobra.Command, args []string) error {
 				label = masterLabel
 			}
 		} else {
-			// ".wtf/work/my-feature" \u2192 "work/my-feature"
-			label = strings.TrimPrefix(filepath.ToSlash(rel), ".wtf/")
+			// ".git-vine/work/my-feature" \u2192 "work/my-feature"
+			label = strings.TrimPrefix(filepath.ToSlash(rel), ".git-vine/")
 		}
 		entries = append(entries, switchEntry{label: label, path: wt.Path})
 	}

@@ -15,7 +15,7 @@ var initFreshCmd = &cobra.Command{
 	Use:   "fresh [project-dir]",
 	Short: "Create a new git-vine project from scratch",
 	Long: `Initializes a git repository, creates an initial commit on master,
-adds a develop worktree under .wtf/, and excludes .wtf/ from git
+adds a develop worktree under .git-vine/, and excludes .git-vine/ from git
 tracking via .git/info/exclude.
 
 If no directory is given you will be prompted.`,
@@ -75,12 +75,12 @@ func runInitFresh(_ *cobra.Command, args []string) error {
 	}
 
 	// 5. Add develop worktree branching from HEAD.
-	if _, err := git.Cmd(projectDir, "worktree", "add", ".wtf/develop", "-b", "develop", "HEAD"); err != nil {
+	if _, err := git.Cmd(projectDir, "worktree", "add", ".git-vine/develop", "-b", "develop", "HEAD"); err != nil {
 		return fmt.Errorf("creating develop worktree: %w", err)
 	}
 
-	// 6. Exclude .wtf/ locally without modifying .gitignore.
-	if err := addToExclude(projectDir, ".wtf"); err != nil {
+	// 6. Exclude .git-vine/ locally without modifying .gitignore.
+	if err := addToExclude(projectDir, ".git-vine"); err != nil {
 		return err
 	}
 
@@ -95,6 +95,6 @@ func runInitFresh(_ *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("\u2713 Initialized new git-vine project at %s\n", projectDir)
-	fmt.Printf("  master (root)  |  develop \u2192 .wtf/develop/\n")
+	fmt.Printf("  master (root)  |  develop \u2192 .git-vine/develop/\n")
 	return nil
 }

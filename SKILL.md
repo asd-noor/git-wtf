@@ -17,14 +17,14 @@ metadata:
 # git-vine Skill
 
 `git-vine` combines Git worktrees with a Git Flow branching model. The project
-root is the **master** working tree. All other worktrees live under `.wtf/`.
+root is the **master** working tree. All other worktrees live under `.git-vine/`.
 
 ## Project layout
 
 ```
 myproject/
   .git/                    # regular git repository
-  .wtf/
+  .git-vine/
     develop/               # permanent develop worktree
     work/<name>/           # ephemeral feature worktrees
     release/<tag>/         # ephemeral release worktrees
@@ -48,7 +48,7 @@ Branch names are persisted in `.git/config`:
 git vine init fresh [project-dir]   # prompts if omitted
 ```
 
-Creates `git init`, sets master branch, creates `.wtf/develop`, writes config.
+Creates `git init`, sets master branch, creates `.git-vine/develop`, writes config.
 
 ### Existing clone
 
@@ -57,13 +57,13 @@ cd my-project
 git vine init adopt                 # prompts for dir, defaults to .
 ```
 
-Checks out master at root, adds `.wtf/develop`, writes config.
+Checks out master at root, adds `.git-vine/develop`, writes config.
 The working tree must be clean before adoption.
 
 ## Work (feature) branches
 
 ```sh
-git vine work start <name>          # creates .wtf/work/<name> from develop
+git vine work start <name>          # creates .git-vine/work/<name> from develop
 git vine work finish <name>         # merges into develop, removes worktree
 git vine work finish <name> --continue  # resume after resolving conflict
 git vine work finish <name> --abort     # abort in-progress merge
@@ -72,7 +72,7 @@ git vine work finish <name> --abort     # abort in-progress merge
 ## Release branches
 
 ```sh
-git vine release start <tag>        # creates .wtf/release/<tag> from develop
+git vine release start <tag>        # creates .git-vine/release/<tag> from develop
 git vine release finish <tag>       # merges into master, tags, merges into develop
 git vine release finish <tag> --continue
 git vine release finish <tag> --abort
@@ -81,7 +81,7 @@ git vine release finish <tag> --abort
 ## Hotfix branches
 
 ```sh
-git vine hotfix start <tag>         # creates .wtf/hotfix/<tag> from master
+git vine hotfix start <tag>         # creates .git-vine/hotfix/<tag> from master
 git vine hotfix finish <tag>        # merges into master, tags, merges into develop
 git vine hotfix finish <tag> --continue
 git vine hotfix finish <tag> --abort
@@ -131,7 +131,7 @@ When a merge conflicts, git-vine exits with a structured message:
 ✗ Merge conflict in develop
 
   Resolve it manually:
-  1. cd /path/to/.wtf/develop
+  1. cd /path/to/.git-vine/develop
   2. fix conflicts, then: git add . && git merge --continue
   3. run: git-vine work finish <name> --continue
 

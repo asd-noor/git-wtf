@@ -48,7 +48,7 @@ func runReleaseStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, ".wtf", "release", tag)
+	worktreeDir := filepath.Join(root, ".git-vine", "release", tag)
 	branchName := "release/" + tag
 
 	if _, err := os.Stat(worktreeDir); err == nil {
@@ -63,7 +63,7 @@ func runReleaseStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := git.Cmd(root, "worktree", "add", ".wtf/release/"+tag, "-b", branchName, bs.Develop); err != nil {
+	if _, err := git.Cmd(root, "worktree", "add", ".git-vine/release/"+tag, "-b", branchName, bs.Develop); err != nil {
 		return fmt.Errorf("creating release worktree: %w", err)
 	}
 
@@ -78,11 +78,11 @@ func runReleaseFinish(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	releaseDir := filepath.Join(root, ".wtf", "release", tag)
+	releaseDir := filepath.Join(root, ".git-vine", "release", tag)
 	masterDir := root
-	developDir := filepath.Join(root, ".wtf", "develop")
+	developDir := filepath.Join(root, ".git-vine", "develop")
 	branchName := "release/" + tag
-	worktreeName := ".wtf/release/" + tag
+	worktreeName := ".git-vine/release/" + tag
 
 	if releaseAbort {
 		if merging, err := git.IsMerging(masterDir); err != nil {
