@@ -11,6 +11,9 @@ It combines Git worktrees with a strict branch lifecycle for:
 
 The project is designed to be mostly stateless: Git remains the source of truth.
 
+> **Tip:** once the binary is in your `PATH`, Git discovers it automatically —
+> every command below works as either `git-wtf <cmd>` or `git wtf <cmd>`.
+
 ## Highlights
 
 - Project root is the master working tree — existing files stay untouched
