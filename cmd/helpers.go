@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"git-wtf/internal/git"
 )
@@ -17,20 +18,9 @@ func mustCwd() string {
 	return cwd
 }
 
-// writeGitRedirect writes a .git file in projectDir pointing at .bare.
-// This allows standard git tools to work from the project root.
-func writeGitRedirect(projectDir string) error {
-	gitFile := filepath.Join(projectDir, ".git")
-	if err := os.WriteFile(gitFile, []byte("gitdir: ./.bare\n"), 0644); err != nil {
-		return fmt.Errorf("writing .git redirect: %w", err)
-	}
-	return nil
-}
-
 // addWorktree creates a worktree at path for branch.
 // If the branch does not exist locally, it is created tracking origin/<branch>.
 func addWorktree(projectRoot, path, branch string) error {
-	// Check if local branch exists.
 	_, err := git.Cmd(projectRoot, "rev-parse", "--verify", "refs/heads/"+branch)
 	if err == nil {
 		_, err = git.Cmd(projectRoot, "worktree", "add", path, branch)
@@ -43,9 +33,37 @@ func addWorktree(projectRoot, path, branch string) error {
 	return nil
 }
 
+// addToExclude appends pattern to .git/info/exclude so the path is ignored
+// locally without touching the project's committed .gitignore.
+func addToExclude(projectRoot, pattern string) error {
+	excludeDir := filepath.Join(projectRoot, ".git", "info")
+	if err := os.MkdirAll(excludeDir, 0755); err != nil {
+		return fmt.Errorf("creating .git/info: %w", err)
+	}
+	excludeFile := filepath.Join(excludeDir, "exclude")
+	existing, err := os.ReadFile(excludeFile)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("reading .git/info/exclude: %w", err)
+	}
+	for _, line := range strings.Split(string(existing), "\n") {
+		if strings.TrimSpace(line) == pattern {
+			return nil // already present
+		}
+	}
+	f, err := os.OpenFile(excludeFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("opening .git/info/exclude: %w", err)
+	}
+	defer f.Close()
+	if _, err := fmt.Fprintf(f, "%s\n", pattern); err != nil {
+		return fmt.Errorf("writing to .git/info/exclude: %w", err)
+	}
+	return nil
+}
+
 // cleanupWorktree removes the worktree directory and deletes the branch.
-// mergeDir is the worktree directory from which the branch deletion is verified
-// (typically develop/, the final merge target in all git-wtf flows). Running
+// mergeDir is the worktree from which the branch deletion is verified (typically
+// .wtf/develop, the final merge target in all git-wtf flows). Running
 // git branch -d from there ensures the safety check is against the correct HEAD.
 func cleanupWorktree(root, mergeDir, worktreeName, branchName string) error {
 	if _, err := git.Cmd(root, "worktree", "remove", worktreeName); err != nil {
@@ -65,18 +83,19 @@ func abortMerge(targetDir string) error {
 		return err
 	}
 	if !merging {
-		return fmt.Errorf("no merge in progress in %s/", filepath.Base(targetDir))
+		return fmt.Errorf("no merge in progress in %s", targetDir)
 	}
 	if _, err := git.Cmd(targetDir, "merge", "--abort"); err != nil {
 		return fmt.Errorf("aborting merge: %w", err)
 	}
-	fmt.Printf("✓ Merge aborted in %s/. Worktree preserved.\n", filepath.Base(targetDir))
+	fmt.Printf("✓ Merge aborted in %s. Working tree preserved.\n", filepath.Base(targetDir))
 	return nil
 }
 
 // conflictErr returns a structured, actionable error for a merge conflict.
-func conflictErr(root, targetBranch, cmdType, name string) error {
-	targetDir := filepath.Join(root, targetBranch)
+// targetName is the display name (e.g. "develop", "master").
+// targetDir is the absolute path to the worktree where the conflict occurred.
+func conflictErr(targetName, targetDir, cmdType, name string) error {
 	return fmt.Errorf(
 		"✗ Merge conflict in %s\n\n"+
 			"  Resolve it manually:\n"+
@@ -84,7 +103,7 @@ func conflictErr(root, targetBranch, cmdType, name string) error {
 			"  2. fix conflicts, then: git add . && git merge --continue\n"+
 			"  3. run: git-wtf %s finish %s --continue\n\n"+
 			"  Or to abort: git-wtf %s finish %s --abort",
-		targetBranch,
+		targetName,
 		targetDir,
 		cmdType, name,
 		cmdType, name,
@@ -136,7 +155,7 @@ func continueFinishWithTag(root, tag, cmdType, branchName, worktreeName string, 
 	}
 	if !merged {
 		if _, err := git.Cmd(developDir, "merge", "--no-ff", branchName); err != nil {
-			return conflictErr(root, "develop", cmdType, tag)
+			return conflictErr("develop", developDir, cmdType, tag)
 		}
 	}
 

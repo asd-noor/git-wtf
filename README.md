@@ -13,12 +13,11 @@ The project is designed to be mostly stateless: Git remains the source of truth.
 
 ## Highlights
 
-- Bare repository anchor in `.bare/`
-- Worktrees for `master`, `develop`, and ephemeral branches
-- Three initialization modes:
+- Project root is the master working tree — existing files stay untouched
+- All other worktrees live under `.wtf/` (git-ignored)
+- Two initialization modes:
   - `init fresh`
   - `init adopt`
-  - `init clone`
 - Opinionated `start` / `finish` lifecycle commands
 - Conflict recovery with `--continue` and `--abort`
 - `prune` command for stale worktrees
@@ -29,7 +28,6 @@ The project is designed to be mostly stateless: Git remains the source of truth.
 
 - Git
 - Go 1.26.3 or newer for development
-- Git 2.42+ is required for `init fresh` because it uses orphan worktree support
 
 ## Installation
 
@@ -73,50 +71,34 @@ cd ~/src/my-project
 git-wtf init adopt
 ```
 
-### Clone a remote and initialize it
-
-```sh
-git-wtf init clone git@github.com:you/my-project.git ~/src/my-project
-```
-
 ## Command reference
 
 ### `init`
 
-Initialize a git-wtf project using one of three modes.
+Initialize a git-wtf project. All inputs are prompted interactively with
+sensible defaults when not supplied as arguments.
 
 #### `init fresh`
 
-Create a brand-new bare repository and initialize `master` and `develop` worktrees.
+Create a new git repository and initialize it as a git-wtf project.
+The project directory is prompted if not supplied (defaults to current directory).
 
 ```sh
+git-wtf init fresh            # prompted
 git-wtf init fresh ~/src/my-project
 ```
-
-Notes:
-
-- Requires Git 2.42+
-- Intended for new repositories
 
 #### `init adopt`
 
 Convert an existing local clone into a git-wtf project in place.
+The directory is prompted if not supplied (defaults to `.`).
+The working tree must be clean before adopting.
 
 ```sh
+git-wtf init adopt            # prompted, defaults to .
 git-wtf init adopt ~/src/my-project
 ```
 
-If `master` or `develop` cannot be inferred automatically, you will be prompted to choose them interactively.
-
-#### `init clone`
-
-Clone a remote repository into `.bare`, restore remote tracking refs, and initialize the worktrees.
-
-```sh
-git-wtf init clone git@github.com:you/my-project.git ~/src/my-project
-```
-
-If the project directory is omitted, it is derived from the URL basename.
 If `master` or `develop` cannot be inferred automatically, you will be prompted to choose them interactively.
 
 ### `work`
@@ -221,15 +203,15 @@ When built with the project build script, the version is injected from git metad
 
 `git-wtf` uses a bare repository anchor and a conventional directory hierarchy:
 
-- `.bare/` — bare repo root
-- `master/` — permanent worktree
-- `develop/` — permanent worktree
-- `work/<name>/` — ephemeral feature worktree
-- `release/<tag>/` — ephemeral release worktree
-- `hotfix/<tag>/` — ephemeral hotfix worktree
+- `.git/` — git repository
+- `.wtf/` — git-ignored, holds all other worktrees
+  - `develop/` — permanent develop worktree
+  - `work/<name>/` — ephemeral feature worktrees
+  - `release/<tag>/` — ephemeral release worktrees
+  - `hotfix/<tag>/` — ephemeral hotfix worktrees
 
-Ephemeral worktrees map directly to their branch names, creating a clean
-directory hierarchy that mirrors the branching model.
+The project root itself is the master working tree. `.wtf/` is excluded via
+`.git/info/exclude` and never appears in `git status`.
 
 ## Development
 

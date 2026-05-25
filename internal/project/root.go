@@ -8,17 +8,18 @@ import (
 )
 
 // FindRoot traverses upward from currentDir until it finds a directory
-// containing a .bare subdirectory (the git-wtf project root).
+// containing a .wtf subdirectory (the git-wtf project root).
 func FindRoot(currentDir string) (string, error) {
+	dir := currentDir
 	for {
-		barePath := filepath.Join(currentDir, ".bare")
-		if info, err := os.Stat(barePath); err == nil && info.IsDir() {
-			return currentDir, nil
+		wtfPath := filepath.Join(dir, ".wtf")
+		if info, err := os.Stat(wtfPath); err == nil && info.IsDir() {
+			return dir, nil
 		}
-		parent := filepath.Dir(currentDir)
-		if parent == currentDir {
-			return "", fmt.Errorf("not inside a managed git-wtf project (no .bare directory found)")
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("not inside a git-wtf project (no .wtf directory found)")
 		}
-		currentDir = parent
+		dir = parent
 	}
 }

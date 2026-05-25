@@ -16,8 +16,8 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "Remove worktrees whose remote branch has been deleted",
 	Long: `Runs git fetch --prune origin, then removes every ephemeral worktree
-(work/*, release/*, hotfix/*) whose corresponding remote branch no longer
-exists (typically because the PR was merged and the branch was deleted).
+under .wtf/work/, .wtf/release/, or .wtf/hotfix/ whose corresponding remote
+branch no longer exists (typically because the PR was merged).
 
 Dirty worktrees are skipped with a warning — commit or stash changes first.
 
@@ -33,10 +33,11 @@ func init() {
 
 // pruneCandidate holds a worktree identified for potential removal.
 type pruneCandidate struct {
-	path       string // absolute path to the worktree directory
-	branchName string // branch name and relative worktree path, e.g. work/my-feature
-	dirty      bool
-	unmerged   bool // not found in develop or master history
+	path         string // absolute path to the worktree directory
+	worktreePath string // relative path from root, e.g. .wtf/work/my-feature
+	branchName   string // branch name, e.g. work/my-feature
+	dirty        bool
+	unmerged     bool // not yet in develop or master history
 }
 
 func runPrune(_ *cobra.Command, _ []string) error {
@@ -62,26 +63,22 @@ func runPrune(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// 4. Identify candidates: ephemeral worktrees with no corresponding remote branch.
+	// 4. Identify candidates: ephemeral worktrees under .wtf/<namespace>/<name>
+	// whose remote branch no longer exists.
 	var candidates []pruneCandidate
 	for _, wt := range worktrees {
-		// Compute the path relative to the project root.
 		rel, err := filepath.Rel(root, wt.Path)
 		if err != nil {
 			continue
 		}
 
-		// Single-component relative paths are permanent worktrees (master, develop)
-		// or the bare repo itself — skip them.
-		sep := string(filepath.Separator)
-		idx := strings.Index(rel, sep)
-		if idx < 0 {
+		// Expect exactly three slash-separated parts: .wtf / namespace / name.
+		parts := strings.SplitN(filepath.ToSlash(rel), "/", 3)
+		if len(parts) != 3 || parts[0] != ".wtf" {
 			continue
 		}
-
-		// Only target the three ephemeral namespaces.
-		prefix := rel[:idx]
-		if prefix != "work" && prefix != "release" && prefix != "hotfix" {
+		namespace := parts[1]
+		if namespace != "work" && namespace != "release" && namespace != "hotfix" {
 			continue
 		}
 
@@ -92,23 +89,21 @@ func runPrune(_ *cobra.Command, _ []string) error {
 
 		branchName := strings.TrimPrefix(wt.Branch, "refs/heads/")
 
-		// If the remote tracking ref still exists, the branch is live — skip.
+		// Remote tracking ref still exists — branch is live, skip.
 		if _, err := git.Cmd(root, "rev-parse", "--verify", "refs/remotes/origin/"+branchName); err == nil {
 			continue
 		}
 
 		dirty, _ := git.IsDirty(wt.Path)
-
-		// Safety check: warn if the branch is not yet in develop or master history.
 		mergedIntoDevelop, _ := git.IsMerged(root, branchName, "develop")
 		mergedIntoMaster, _ := git.IsMerged(root, branchName, "master")
-		unmerged := !mergedIntoDevelop && !mergedIntoMaster
 
 		candidates = append(candidates, pruneCandidate{
-			path:       wt.Path,
-			branchName: branchName,
-			dirty:      dirty,
-			unmerged:   unmerged,
+			path:         wt.Path,
+			worktreePath: rel,
+			branchName:   branchName,
+			dirty:        dirty,
+			unmerged:     !mergedIntoDevelop && !mergedIntoMaster,
 		})
 	}
 
@@ -118,18 +113,18 @@ func runPrune(_ *cobra.Command, _ []string) error {
 	}
 
 	// 5. Report and act on candidates.
-	developDir := filepath.Join(root, "develop")
+	developDir := filepath.Join(root, ".wtf", "develop")
 	skipped := 0
 	pruned := 0
 
 	for _, c := range candidates {
 		if c.dirty {
-			fmt.Printf("  ⚠ skipping %s — has uncommitted changes (commit or stash first)\n", c.branchName)
+			fmt.Printf("  \u26a0 skipping %s \u2014 has uncommitted changes (commit or stash first)\n", c.branchName)
 			skipped++
 			continue
 		}
 		if c.unmerged {
-			fmt.Printf("  ⚠ %s — remote branch gone but not merged into develop or master\n", c.branchName)
+			fmt.Printf("  \u26a0 %s \u2014 remote branch gone but not merged into develop or master\n", c.branchName)
 		}
 
 		if pruneDryRun {
@@ -138,26 +133,26 @@ func runPrune(_ *cobra.Command, _ []string) error {
 			continue
 		}
 
-		// Remove the worktree directory.
-		if _, err := git.Cmd(root, "worktree", "remove", c.branchName); err != nil {
-			fmt.Printf("  ✗ failed to remove worktree %s: %v\n", c.branchName, err)
+		// Remove the worktree.
+		if _, err := git.Cmd(root, "worktree", "remove", c.worktreePath); err != nil {
+			fmt.Printf("  \u2717 failed to remove worktree %s: %v\n", c.branchName, err)
 			skipped++
 			continue
 		}
 
-		// Delete the branch. Use -D for unmerged branches (remote deletion is
-		// intentional; we already warned the user above).
+		// Delete the branch. Use -D for unmerged branches (remote deletion
+		// is intentional; the user was already warned above).
 		deleteFlag := "-d"
 		if c.unmerged {
 			deleteFlag = "-D"
 		}
 		if _, err := git.Cmd(developDir, "branch", deleteFlag, c.branchName); err != nil {
-			fmt.Printf("  ✗ failed to delete branch %s: %v\n", c.branchName, err)
+			fmt.Printf("  \u2717 failed to delete branch %s: %v\n", c.branchName, err)
 			skipped++
 			continue
 		}
 
-		fmt.Printf("  ✓ removed %s\n", c.branchName)
+		fmt.Printf("  \u2713 removed %s\n", c.branchName)
 		pruned++
 	}
 

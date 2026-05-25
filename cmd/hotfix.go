@@ -48,12 +48,12 @@ func runHotfixStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, "hotfix", tag)
+	worktreeDir := filepath.Join(root, ".wtf", "hotfix", tag)
 	if _, err := os.Stat(worktreeDir); err == nil {
 		return fmt.Errorf("hotfix '%s' already exists at %s", tag, worktreeDir)
 	}
 
-	if _, err := git.Cmd(root, "worktree", "add", "hotfix/"+tag, "-b", "hotfix/"+tag, "master"); err != nil {
+	if _, err := git.Cmd(root, "worktree", "add", ".wtf/hotfix/"+tag, "-b", "hotfix/"+tag, "master"); err != nil {
 		return fmt.Errorf("creating hotfix worktree: %w", err)
 	}
 
@@ -68,11 +68,11 @@ func runHotfixFinish(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	hotfixDir := filepath.Join(root, "hotfix", tag)
-	masterDir := filepath.Join(root, "master")
-	developDir := filepath.Join(root, "develop")
+	hotfixDir := filepath.Join(root, ".wtf", "hotfix", tag)
+	masterDir := root
+	developDir := filepath.Join(root, ".wtf", "develop")
 	branchName := "hotfix/" + tag
-	worktreeName := "hotfix/" + tag
+	worktreeName := ".wtf/hotfix/" + tag
 
 	if hotfixAbort {
 		if merging, _ := git.IsMerging(masterDir); merging {
@@ -102,7 +102,7 @@ func runHotfixFinish(_ *cobra.Command, args []string) error {
 
 	// Step 3: Merge into master.
 	if _, err := git.Cmd(masterDir, "merge", "--no-ff", branchName); err != nil {
-		return conflictErr(root, "master", "hotfix", tag)
+		return conflictErr("master", root, "hotfix", tag)
 	}
 
 	// Step 4: Tag — only after a successful master merge.
@@ -112,7 +112,7 @@ func runHotfixFinish(_ *cobra.Command, args []string) error {
 
 	// Step 5: Merge into develop.
 	if _, err := git.Cmd(developDir, "merge", "--no-ff", branchName); err != nil {
-		return conflictErr(root, "develop", "hotfix", tag)
+		return conflictErr("develop", developDir, "hotfix", tag)
 	}
 
 	return cleanupWorktree(root, developDir, worktreeName, branchName)

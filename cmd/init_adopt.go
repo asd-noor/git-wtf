@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"git-wtf/internal/git"
 	"git-wtf/internal/project"
@@ -13,10 +14,11 @@ import (
 var initAdoptCmd = &cobra.Command{
 	Use:   "adopt [dir]",
 	Short: "Convert an existing local git clone into a git-wtf project",
-	Long: `Renames .git to .bare, writes a .git redirect file, restores remote
-tracking refs, and adds master/develop worktrees.
+	Long: `Checks out the master branch at the project root, adds a develop
+worktree under .wtf/, and excludes .wtf/ from git tracking via
+.git/info/exclude.
 
-Defaults to the current directory if no path is given.
+If no directory is given you will be prompted (defaults to current directory).
 If master or develop branches cannot be inferred, you will be prompted
 to select them interactively.`,
 	Args: cobra.MaximumNArgs(1),
@@ -28,66 +30,68 @@ func init() {
 }
 
 func runInitAdopt(_ *cobra.Command, args []string) error {
-	dir := "."
+	var dirInput string
+
 	if len(args) == 1 {
-		dir = args[0]
+		dirInput = args[0]
+	} else {
+		dirInput = "."
+		if err := huh.NewInput().
+			Title("Directory to adopt").
+			Value(&dirInput).
+			Run(); err != nil {
+			return fmt.Errorf("reading directory: %w", err)
+		}
 	}
-	projectDir, err := filepath.Abs(dir)
+
+	projectDir, err := filepath.Abs(dirInput)
 	if err != nil {
 		return fmt.Errorf("resolving directory: %w", err)
 	}
 
-	// 1. Verify this is a regular clone (has a .git directory, not a file).
+	// 1. Verify this is a regular git clone (has a .git directory, not a file).
 	gitPath := filepath.Join(projectDir, ".git")
 	info, err := os.Stat(gitPath)
 	if err != nil || !info.IsDir() {
 		return fmt.Errorf("%s is not a regular git clone (.git directory not found)", projectDir)
 	}
 
-	// Guard: don't adopt an already-adopted project.
-	if _, err := os.Stat(filepath.Join(projectDir, ".bare")); err == nil {
-		return fmt.Errorf("already a git-wtf project (.bare already exists)")
+	// 2. Guard: don't adopt an already-adopted project.
+	if _, err := os.Stat(filepath.Join(projectDir, ".wtf")); err == nil {
+		return fmt.Errorf("already a git-wtf project (.wtf already exists)")
 	}
 
-	// 2. Resolve branches while .git is still intact (before any filesystem changes).
+	// 3. Guard: working tree must be clean before checkout.
+	if dirty, err := git.IsDirty(projectDir); err != nil {
+		return err
+	} else if dirty {
+		return fmt.Errorf("working tree has uncommitted changes — commit or stash them first")
+	}
+
+	// 4. Resolve branches before making any changes.
 	// If the user cancels or branches cannot be inferred, we exit cleanly here.
 	bs, err := project.ResolveBranches(projectDir, false)
 	if err != nil {
 		return err
 	}
 
-	// 3. Rename .git → .bare (point of no return — all validation has passed).
-	barePath := filepath.Join(projectDir, ".bare")
-	if err := os.Rename(gitPath, barePath); err != nil {
-		return fmt.Errorf("renaming .git to .bare: %w", err)
+	// 5. Checkout the master branch — the project root serves as the master
+	// working tree so it must be on the correct branch.
+	if _, err := git.Cmd(projectDir, "checkout", bs.Master); err != nil {
+		return fmt.Errorf("checking out %s: %w", bs.Master, err)
 	}
 
-	// 4. Write .git redirect file.
-	if err := writeGitRedirect(projectDir); err != nil {
+	// 6. Add develop worktree under .wtf/.
+	if err := addWorktree(projectDir, ".wtf/develop", bs.Develop); err != nil {
 		return err
 	}
 
-	// 5. Mark the repository as bare.
-	if _, err := git.Cmd(projectDir, "config", "--file", ".bare/config", "core.bare", "true"); err != nil {
-		return fmt.Errorf("setting core.bare: %w", err)
-	}
-
-	// 6. Restore remote tracking refs (best-effort — no remote is not fatal).
-	if _, err := git.Cmd(projectDir, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"); err != nil {
-		fmt.Println("  ⚠ No remote 'origin' found, skipping remote tracking setup.")
-	} else if _, err := git.Cmd(projectDir, "fetch"); err != nil {
-		fmt.Println("  ⚠ git fetch failed — you may need to fetch manually.")
-	}
-
-	// 7. Add worktrees.
-	if err := addWorktree(projectDir, "master", bs.Master); err != nil {
-		return err
-	}
-	if err := addWorktree(projectDir, "develop", bs.Develop); err != nil {
+	// 7. Exclude .wtf/ locally without modifying .gitignore.
+	if err := addToExclude(projectDir, ".wtf"); err != nil {
 		return err
 	}
 
-	fmt.Printf("✓ Adopted git-wtf project at %s\n", projectDir)
-	fmt.Printf("  master → %s  |  develop → %s\n", bs.Master, bs.Develop)
+	fmt.Printf("\u2713 Adopted git-wtf project at %s\n", projectDir)
+	fmt.Printf("  master \u2192 %s (root)  |  develop \u2192 %s (.wtf/develop/)\n", bs.Master, bs.Develop)
 	return nil
 }

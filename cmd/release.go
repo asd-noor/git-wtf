@@ -48,12 +48,12 @@ func runReleaseStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, "release", tag)
+	worktreeDir := filepath.Join(root, ".wtf", "release", tag)
 	if _, err := os.Stat(worktreeDir); err == nil {
 		return fmt.Errorf("release '%s' already exists at %s", tag, worktreeDir)
 	}
 
-	if _, err := git.Cmd(root, "worktree", "add", "release/"+tag, "-b", "release/"+tag, "develop"); err != nil {
+	if _, err := git.Cmd(root, "worktree", "add", ".wtf/release/"+tag, "-b", "release/"+tag, "develop"); err != nil {
 		return fmt.Errorf("creating release worktree: %w", err)
 	}
 
@@ -68,11 +68,11 @@ func runReleaseFinish(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	releaseDir := filepath.Join(root, "release", tag)
-	masterDir := filepath.Join(root, "master")
-	developDir := filepath.Join(root, "develop")
+	releaseDir := filepath.Join(root, ".wtf", "release", tag)
+	masterDir := root
+	developDir := filepath.Join(root, ".wtf", "develop")
 	branchName := "release/" + tag
-	worktreeName := "release/" + tag
+	worktreeName := ".wtf/release/" + tag
 
 	if releaseAbort {
 		if merging, _ := git.IsMerging(masterDir); merging {
@@ -102,7 +102,7 @@ func runReleaseFinish(_ *cobra.Command, args []string) error {
 
 	// Step 3: Merge into master.
 	if _, err := git.Cmd(masterDir, "merge", "--no-ff", branchName); err != nil {
-		return conflictErr(root, "master", "release", tag)
+		return conflictErr("master", root, "release", tag)
 	}
 
 	// Step 4: Tag — only after a successful master merge.
@@ -112,7 +112,7 @@ func runReleaseFinish(_ *cobra.Command, args []string) error {
 
 	// Step 5: Merge into develop.
 	if _, err := git.Cmd(developDir, "merge", "--no-ff", branchName); err != nil {
-		return conflictErr(root, "develop", "release", tag)
+		return conflictErr("develop", developDir, "release", tag)
 	}
 
 	return cleanupWorktree(root, developDir, worktreeName, branchName)

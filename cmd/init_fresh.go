@@ -5,17 +5,20 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"git-wtf/internal/git"
 )
 
 var initFreshCmd = &cobra.Command{
-	Use:   "fresh <project-dir>",
+	Use:   "fresh [project-dir]",
 	Short: "Create a new git-wtf project from scratch",
-	Long: `Creates a bare repository and initialises master and develop worktrees.
+	Long: `Initializes a git repository, creates an initial commit on master,
+adds a develop worktree under .wtf/, and excludes .wtf/ from git
+tracking via .git/info/exclude.
 
-Requires git >= 2.42 for orphan worktree support.`,
-	Args: cobra.ExactArgs(1),
+If no directory is given you will be prompted.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runInitFresh,
 }
 
@@ -24,7 +27,26 @@ func init() {
 }
 
 func runInitFresh(_ *cobra.Command, args []string) error {
-	projectDir, err := filepath.Abs(args[0])
+	var dirInput string
+
+	if len(args) == 1 {
+		dirInput = args[0]
+	} else {
+		cwd, _ := os.Getwd()
+		dirInput = cwd
+		if err := huh.NewInput().
+			Title("Project directory").
+			Value(&dirInput).
+			Run(); err != nil {
+			return fmt.Errorf("reading project directory: %w", err)
+		}
+	}
+
+	if dirInput == "" {
+		return fmt.Errorf("project directory cannot be empty")
+	}
+
+	projectDir, err := filepath.Abs(dirInput)
 	if err != nil {
 		return fmt.Errorf("resolving project directory: %w", err)
 	}
@@ -34,33 +56,34 @@ func runInitFresh(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("creating project directory: %w", err)
 	}
 
-	// 2. Initialize bare repository.
-	if _, err := git.Cmd(projectDir, "init", "--bare", ".bare"); err != nil {
-		return fmt.Errorf("initializing bare repository: %w", err)
+	// 2. Initialize repository.
+	if _, err := git.Cmd(projectDir, "init"); err != nil {
+		return fmt.Errorf("initializing repository: %w", err)
 	}
 
-	// 3. Write .git redirect so standard git tools work from the project root.
-	if err := writeGitRedirect(projectDir); err != nil {
-		return err
+	// 3. Set default branch to master.
+	// Using symbolic-ref instead of git init -b for compatibility with git < 2.28.
+	if _, err := git.Cmd(projectDir, "symbolic-ref", "HEAD", "refs/heads/master"); err != nil {
+		return fmt.Errorf("setting default branch: %w", err)
 	}
 
-	// 4. Add master worktree with an orphan branch (no commits exist yet).
-	if _, err := git.Cmd(projectDir, "worktree", "add", "--orphan", "-b", "master", "master"); err != nil {
-		return fmt.Errorf("creating master worktree: %w", err)
+	// 4. Create initial empty commit to establish the master branch.
+	// Requires git user.name and user.email to be configured.
+	if _, err := git.Cmd(projectDir, "commit", "--allow-empty", "-m", "Initial commit"); err != nil {
+		return fmt.Errorf("creating initial commit: %w\n\nhint: configure git user.name and user.email", err)
 	}
 
-	// 5. Create the initial empty commit to establish history.
-	masterDir := filepath.Join(projectDir, "master")
-	if _, err := git.Cmd(masterDir, "commit", "--allow-empty", "-m", "Initial commit"); err != nil {
-		return fmt.Errorf("creating initial commit: %w", err)
-	}
-
-	// 6. Add develop worktree branching from master.
-	if _, err := git.Cmd(projectDir, "worktree", "add", "develop", "-b", "develop", "master"); err != nil {
+	// 5. Add develop worktree branching from HEAD.
+	if _, err := git.Cmd(projectDir, "worktree", "add", ".wtf/develop", "-b", "develop", "HEAD"); err != nil {
 		return fmt.Errorf("creating develop worktree: %w", err)
 	}
 
-	fmt.Printf("✓ Initialized new git-wtf project at %s\n", projectDir)
-	fmt.Printf("  Worktrees ready: master/  develop/\n")
+	// 6. Exclude .wtf/ locally without modifying .gitignore.
+	if err := addToExclude(projectDir, ".wtf"); err != nil {
+		return err
+	}
+
+	fmt.Printf("\u2713 Initialized new git-wtf project at %s\n", projectDir)
+	fmt.Printf("  master (root)  |  develop \u2192 .wtf/develop/\n")
 	return nil
 }

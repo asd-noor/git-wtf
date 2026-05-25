@@ -48,12 +48,12 @@ func runWorkStart(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, "work", name)
+	worktreeDir := filepath.Join(root, ".wtf", "work", name)
 	if _, err := os.Stat(worktreeDir); err == nil {
 		return fmt.Errorf("work branch '%s' already exists at %s", name, worktreeDir)
 	}
 
-	if _, err := git.Cmd(root, "worktree", "add", "work/"+name, "-b", "work/"+name, "develop"); err != nil {
+	if _, err := git.Cmd(root, "worktree", "add", ".wtf/work/"+name, "-b", "work/"+name, "develop"); err != nil {
 		return fmt.Errorf("creating work worktree: %w", err)
 	}
 
@@ -68,10 +68,10 @@ func runWorkFinish(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	worktreeDir := filepath.Join(root, "work", name)
-	developDir := filepath.Join(root, "develop")
+	worktreeDir := filepath.Join(root, ".wtf", "work", name)
+	developDir := filepath.Join(root, ".wtf", "develop")
 	branchName := "work/" + name
-	worktreeName := "work/" + name
+	worktreeName := ".wtf/work/" + name
 
 	if workAbort {
 		return abortMerge(developDir)
@@ -95,7 +95,6 @@ func runWorkFinish(_ *cobra.Command, args []string) error {
 	if _, err := os.Stat(worktreeDir); os.IsNotExist(err) {
 		return fmt.Errorf("work branch '%s' not found at %s", name, worktreeDir)
 	}
-
 	// Dirty check.
 	if dirty, err := git.IsDirty(worktreeDir); err != nil {
 		return err
@@ -105,7 +104,7 @@ func runWorkFinish(_ *cobra.Command, args []string) error {
 
 	// Merge into develop.
 	if _, err := git.Cmd(developDir, "merge", "--no-ff", branchName); err != nil {
-		return conflictErr(root, "develop", "work", name)
+		return conflictErr("develop", developDir, "work", name)
 	}
 
 	return cleanupWorktree(root, developDir, worktreeName, branchName)
