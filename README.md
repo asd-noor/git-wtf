@@ -3,7 +3,7 @@
 `git-wtf` manages Git worktrees with a strict Git Flow branching model.
 It combines Git worktrees with a strict branch lifecycle for:
 
-- work / feature branches
+- work / feature / bugfix branches
 - release branches
 - hotfix branches
 - bare-repo-based project setup
