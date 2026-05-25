@@ -1,154 +1,95 @@
 ---
 name: git-vine
 description: >
-  Manage Git worktrees following a strict Git Flow branching model using the
-  git-vine CLI. Use this skill when the user wants to start, finish, or switch
-  between work/feature branches, release branches, or hotfix branches in a
-  git-vine project, or when they want to initialise a new or existing repository
-  as a git-vine project.
+  Manage Git worktrees with a Git Flow branching model using the git-vine CLI
+  (also invoked as `git vine`). Activate when the user mentions starting,
+  finishing, or switching work/feature, release, or hotfix branches, pruning
+  stale worktrees, or initialising a repository as a git-vine project.
 license: GPL-3.0
-compatibility: Requires git and the git-vine binary in PATH. Run as `git-vine` or `git vine`.
+compatibility: Requires git and the git-vine binary in PATH.
 metadata:
   author: Asaduzzaman Noor
-  version: "1.0.1"
-  repository: https://github.com/asd-noor/git-vine
+  version: "1.1.0"
 ---
 
-# git-vine Skill
+# git-vine
 
-`git-vine` combines Git worktrees with a Git Flow branching model. The project
-root is the **master** working tree. All other worktrees live under `.git-vine/`.
+## Mental model
 
-## Project layout
+- **Project root = master working tree** — never a separate directory.
+- **All other worktrees** live under `.git-vine/` (locally git-ignored).
+- **Branch names** are stored in `.git/config` under `[git-vine "branch"]`.
+  Always read them with `git config --local git-vine.branch.master` — never
+  hardcode `master` or `develop`.
 
-```
-myproject/
-  .git/                    # regular git repository
-  .git-vine/
-    develop/               # permanent develop worktree
-    work/<name>/           # ephemeral feature worktrees
-    release/<tag>/         # ephemeral release worktrees
-    hotfix/<tag>/          # ephemeral hotfix worktrees
-  src/                     # project files (untouched on adopt)
-```
+## Choosing a command
 
-Branch names are persisted in `.git/config`:
+| User intent | Command |
+|---|---|
+| New project from scratch | `git vine init fresh [dir]` |
+| Existing clone → git-vine | `git vine init adopt [dir]` |
+| Start feature work | `git vine work start <name>` |
+| Finish feature, merge to develop | `git vine work finish <name>` |
+| Cut a release from develop | `git vine release start <tag>` |
+| Merge release → master + tag + develop | `git vine release finish <tag>` |
+| Cut a hotfix from master | `git vine hotfix start <tag>` |
+| Merge hotfix → master + tag + develop | `git vine hotfix finish <tag>` |
+| Navigate to a worktree | `git vine switch [name]` |
+| Remove worktrees with deleted remote | `git vine prune [--dry-run]` |
 
-```ini
-[git-vine "branch"]
-    master  = master   # or main, trunk, etc.
-    develop = develop  # or dev, etc.
-```
+## Critical invariants
 
-## Initialisation
+1. **Dirty check** blocks `finish` commands and `init adopt`.
+   Only staged/modified tracked files count — untracked files are intentionally
+   ignored (git checkout and merge are not blocked by them).
 
-### New project
+2. **`finish` checks both permanent worktrees are clean** before any merge
+   starts (`release`/`hotfix`). A dirty develop will abort a release finish
+   even though the conflict is not in the release branch.
 
-```sh
-git vine init fresh [project-dir]   # prompts if omitted
-```
+3. **`start` guards both directory and branch ref.** An orphaned branch
+   (worktree removed but branch not deleted) blocks re-creation with a clear
+   recovery hint: `git branch -D <branch>`.
 
-Creates `git init`, sets master branch, creates `.git-vine/develop`, writes config.
+4. **`--continue` verifies the merge actually landed** (`merge-base
+   --is-ancestor`) before cleanup. Running `--continue` after a manual
+   `git merge --abort` correctly refuses to clean up.
 
-### Existing clone
-
-```sh
-cd my-project
-git vine init adopt                 # prompts for dir, defaults to .
-```
-
-Checks out master at root, adds `.git-vine/develop`, writes config.
-The working tree must be clean before adoption.
-
-## Work (feature) branches
-
-```sh
-git vine work start <name>          # creates .git-vine/work/<name> from develop
-git vine work finish <name>         # merges into develop, removes worktree
-git vine work finish <name> --continue  # resume after resolving conflict
-git vine work finish <name> --abort     # abort in-progress merge
-```
-
-## Release branches
-
-```sh
-git vine release start <tag>        # creates .git-vine/release/<tag> from develop
-git vine release finish <tag>       # merges into master, tags, merges into develop
-git vine release finish <tag> --continue
-git vine release finish <tag> --abort
-```
-
-## Hotfix branches
-
-```sh
-git vine hotfix start <tag>         # creates .git-vine/hotfix/<tag> from master
-git vine hotfix finish <tag>        # merges into master, tags, merges into develop
-git vine hotfix finish <tag> --continue
-git vine hotfix finish <tag> --abort
-```
-
-## Switching between worktrees
-
-```sh
-git vine switch                     # interactive picker (renders to stderr)
-git vine switch develop
-git vine switch master
-git vine switch my-feature          # expands to work/my-feature
-git vine switch work/my-feature
-git vine switch 1.0.0               # tries release/1.0.0 then hotfix/1.0.0
-```
-
-Shell integration to `cd` on select:
-
-```sh
-# Bash / Zsh
-gws() { local p; p="$(git-vine switch "$@")" && cd "$p"; }
-
-# Fish
-function gws; cd (git-vine switch $argv); end
-```
-
-## Pruning stale worktrees
-
-```sh
-git vine prune             # removes worktrees whose remote branch was deleted
-git vine prune --dry-run   # preview without making changes
-```
-
-Requires an `origin` remote. Skips dirty worktrees.
-
-## Other commands
-
-```sh
-git vine version           # print version string
-```
+5. **`switch` outputs only the path to stdout.** The TUI renders to stderr so
+   `p=$(git vine switch)` captures just the path. Shell integration:
+   ```sh
+   gws() { local p; p="$(git vine switch "$@")" && cd "$p"; }
+   ```
 
 ## Conflict recovery
 
-When a merge conflicts, git-vine exits with a structured message:
+When a merge conflicts, re-run with `--continue` after resolving:
 
-```
-✗ Merge conflict in develop
-
-  Resolve it manually:
-  1. cd /path/to/.git-vine/develop
-  2. fix conflicts, then: git add . && git merge --continue
-  3. run: git-vine work finish <name> --continue
-
-  Or to abort: git-vine work finish <name> --abort
+```sh
+cd .git-vine/develop        # or .git-vine/release/<tag>, etc.
+git add . && git merge --continue
+git vine work finish <name> --continue   # or release/hotfix
 ```
 
-The `--continue` flag re-checks that the merge actually landed (via
-`git merge-base --is-ancestor`) before cleaning up.
+Or abort entirely:
+```sh
+git vine work finish <name> --abort
+```
 
-## Key constraints
+`release`/`hotfix finish --continue` is stage-aware: it uses tag existence to
+determine whether the master merge or develop merge conflicted and resumes from
+the correct step.
 
-- **Dirty check**: `finish` commands and `init adopt` block on staged or
-  modified tracked files. Untracked files are intentionally ignored.
-- **Branch names**: hardcoding `master`/`develop` is wrong; always read from
-  `.git/config` via `git config --local git-vine.branch.master` etc.
-- **Duplicate guard**: `start` checks both the worktree directory and the
-  branch ref. An orphaned branch (worktree removed but branch not deleted)
-  is caught with a clear recovery hint.
-- **Release/hotfix finish** checks that both master (root) and develop are
-  clean before starting any merge operations.
+## init adopt — pre-conditions
+
+- Working tree must be clean (no staged or unstaged changes to tracked files).
+- `ResolveBranches` runs before any filesystem changes — cancelling the
+  interactive prompt leaves the repo untouched.
+- If develop does not exist, the prompt offers to create it from master.
+
+## prune — when it works
+
+Requires an `origin` remote. Fetches `--prune`, then checks
+`refs/remotes/origin/<branch>` for each ephemeral worktree. Dirty worktrees
+are skipped. Branches not yet merged into master or develop trigger a warning
+and are force-deleted (`-D`) because remote deletion is considered intentional.
