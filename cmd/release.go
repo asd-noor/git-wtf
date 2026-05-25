@@ -49,11 +49,21 @@ func runReleaseStart(_ *cobra.Command, args []string) error {
 	}
 
 	worktreeDir := filepath.Join(root, ".wtf", "release", tag)
+	branchName := "release/" + tag
+
 	if _, err := os.Stat(worktreeDir); err == nil {
 		return fmt.Errorf("release '%s' already exists at %s", tag, worktreeDir)
 	}
+	if _, err := git.Cmd(root, "rev-parse", "--verify", "refs/heads/"+branchName); err == nil {
+		return fmt.Errorf("branch %s already exists without a worktree — remove it with: git branch -D %s", branchName, branchName)
+	}
 
-	if _, err := git.Cmd(root, "worktree", "add", ".wtf/release/"+tag, "-b", "release/"+tag, "develop"); err != nil {
+	bs, err := project.ReadBranches(root)
+	if err != nil {
+		return err
+	}
+
+	if _, err := git.Cmd(root, "worktree", "add", ".wtf/release/"+tag, "-b", branchName, bs.Develop); err != nil {
 		return fmt.Errorf("creating release worktree: %w", err)
 	}
 
@@ -75,10 +85,14 @@ func runReleaseFinish(_ *cobra.Command, args []string) error {
 	worktreeName := ".wtf/release/" + tag
 
 	if releaseAbort {
-		if merging, _ := git.IsMerging(masterDir); merging {
+		if merging, err := git.IsMerging(masterDir); err != nil {
+			return err
+		} else if merging {
 			return abortMerge(masterDir)
 		}
-		if merging, _ := git.IsMerging(developDir); merging {
+		if merging, err := git.IsMerging(developDir); err != nil {
+			return err
+		} else if merging {
 			return abortMerge(developDir)
 		}
 		return fmt.Errorf("no merge in progress")
@@ -98,6 +112,24 @@ func runReleaseFinish(_ *cobra.Command, args []string) error {
 		return err
 	} else if dirty {
 		return fmt.Errorf("release/%s has uncommitted changes — commit or stash them first", tag)
+	}
+
+	// Read config here — only needed for dirty-check error messages.
+	bs, err := project.ReadBranches(root)
+	if err != nil {
+		return err
+	}
+
+	// Both permanent worktrees must be clean before any merges begin.
+	if dirty, err := git.IsDirty(masterDir); err != nil {
+		return err
+	} else if dirty {
+		return fmt.Errorf("%s has uncommitted changes — commit or stash them first", bs.Master)
+	}
+	if dirty, err := git.IsDirty(developDir); err != nil {
+		return err
+	} else if dirty {
+		return fmt.Errorf("%s has uncommitted changes — commit or stash them first", bs.Develop)
 	}
 
 	// Step 3: Merge into master.

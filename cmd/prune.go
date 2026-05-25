@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -46,9 +47,11 @@ func runPrune(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	developDir := filepath.Join(root, ".wtf", "develop")
+
 	// 1. Require an origin remote — prune is meaningless without one.
 	if _, err := git.Cmd(root, "remote", "get-url", "origin"); err != nil {
-		return fmt.Errorf("no 'origin' remote configured — prune checks remote branch state and requires one")
+		return fmt.Errorf("no 'origin' remote configured \u2014 prune checks remote branch state and requires one")
 	}
 
 	// 2. Fetch and prune stale remote tracking refs.
@@ -57,13 +60,23 @@ func runPrune(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("git fetch --prune origin: %w", err)
 	}
 
-	// 3. List all active worktrees.
+	// 3. Read branch names from config.
+	bs, err := project.ReadBranches(root)
+	if err != nil {
+		return err
+	}
+
+	// 4. List all active worktrees.
 	worktrees, err := git.ListWorktrees(root)
 	if err != nil {
 		return err
 	}
 
-	// 4. Identify candidates: ephemeral worktrees under .wtf/<namespace>/<name>
+	// Counts declared here so detection-loop errors are included in the summary.
+	skipped := 0
+	pruned := 0
+
+	// 5. Identify candidates: ephemeral worktrees under .wtf/<namespace>/<name>
 	// whose remote branch no longer exists.
 	var candidates []pruneCandidate
 	for _, wt := range worktrees {
@@ -82,21 +95,34 @@ func runPrune(_ *cobra.Command, _ []string) error {
 			continue
 		}
 
-		// Skip detached HEAD worktrees — no branch to check.
 		if wt.Branch == "" {
-			continue
+			continue // detached HEAD
 		}
 
 		branchName := strings.TrimPrefix(wt.Branch, "refs/heads/")
 
-		// Remote tracking ref still exists — branch is live, skip.
 		if _, err := git.Cmd(root, "rev-parse", "--verify", "refs/remotes/origin/"+branchName); err == nil {
-			continue
+			continue // remote still live
 		}
 
-		dirty, _ := git.IsDirty(wt.Path)
-		mergedIntoDevelop, _ := git.IsMerged(root, branchName, "develop")
-		mergedIntoMaster, _ := git.IsMerged(root, branchName, "master")
+		dirty, err := git.IsDirty(wt.Path)
+		if err != nil {
+			fmt.Printf("  \u26a0 skipping %s \u2014 could not check dirty state: %v\n", branchName, err)
+			skipped++
+			continue
+		}
+		mergedIntoDevelop, err := git.IsMerged(root, branchName, bs.Develop)
+		if err != nil {
+			fmt.Printf("  \u26a0 skipping %s \u2014 could not check merge state: %v\n", branchName, err)
+			skipped++
+			continue
+		}
+		mergedIntoMaster, err := git.IsMerged(root, branchName, bs.Master)
+		if err != nil {
+			fmt.Printf("  \u26a0 skipping %s \u2014 could not check merge state: %v\n", branchName, err)
+			skipped++
+			continue
+		}
 
 		candidates = append(candidates, pruneCandidate{
 			path:         wt.Path,
@@ -107,16 +133,12 @@ func runPrune(_ *cobra.Command, _ []string) error {
 		})
 	}
 
-	if len(candidates) == 0 {
+	if len(candidates) == 0 && skipped == 0 {
 		fmt.Println("Nothing to prune.")
 		return nil
 	}
 
-	// 5. Report and act on candidates.
-	developDir := filepath.Join(root, ".wtf", "develop")
-	skipped := 0
-	pruned := 0
-
+	// 6. Report and act on candidates.
 	for _, c := range candidates {
 		if c.dirty {
 			fmt.Printf("  \u26a0 skipping %s \u2014 has uncommitted changes (commit or stash first)\n", c.branchName)
@@ -133,15 +155,19 @@ func runPrune(_ *cobra.Command, _ []string) error {
 			continue
 		}
 
-		// Remove the worktree.
 		if _, err := git.Cmd(root, "worktree", "remove", c.worktreePath); err != nil {
 			fmt.Printf("  \u2717 failed to remove worktree %s: %v\n", c.branchName, err)
 			skipped++
 			continue
 		}
 
-		// Delete the branch. Use -D for unmerged branches (remote deletion
-		// is intentional; the user was already warned above).
+		// Verify develop worktree exists before deleting the branch from it.
+		if _, err := os.Stat(developDir); err != nil {
+			fmt.Printf("  \u2717 .wtf/develop not found \u2014 worktree removed but branch %s was not deleted (recover: git branch -D %s)\n", c.branchName, c.branchName)
+			skipped++
+			continue
+		}
+
 		deleteFlag := "-d"
 		if c.unmerged {
 			deleteFlag = "-D"
@@ -156,7 +182,7 @@ func runPrune(_ *cobra.Command, _ []string) error {
 		pruned++
 	}
 
-	// 6. Summary.
+	// 7. Summary.
 	if pruneDryRun {
 		fmt.Printf("\nDry run: %d worktree(s) would be removed, %d skipped.\n", pruned, skipped)
 	} else {

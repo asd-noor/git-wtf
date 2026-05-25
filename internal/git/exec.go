@@ -26,13 +26,33 @@ func Cmd(dir string, args ...string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-// IsDirty reports whether the worktree at dir has uncommitted changes.
+// IsDirty reports whether the worktree at dir has uncommitted changes to
+// tracked files. Untracked files are not considered dirty.
 func IsDirty(dir string) (bool, error) {
 	out, err := Cmd(dir, "status", "--porcelain")
 	if err != nil {
 		return false, fmt.Errorf("checking dirty state: %w", err)
 	}
-	return strings.TrimSpace(out) != "", nil
+	for _, line := range strings.Split(out, "\n") {
+		// Porcelain v1: untracked files begin with "?? "; skip them.
+		if line != "" && !strings.HasPrefix(line, "??") {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// CurrentBranch returns the name of the currently checked-out branch in dir.
+// Returns an error if the repository is in detached HEAD state.
+func CurrentBranch(dir string) (string, error) {
+	branch, err := Cmd(dir, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("reading current branch: %w", err)
+	}
+	if branch == "HEAD" {
+		return "", fmt.Errorf("repository at %s is in detached HEAD state", dir)
+	}
+	return branch, nil
 }
 
 // IsMerging reports whether a merge is in progress in the worktree at dir.

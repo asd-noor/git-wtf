@@ -189,6 +189,29 @@ Behavior:
 - skips dirty worktrees
 - warns if the branch is not merged into `develop` or `master`
 
+
+### `switch`
+
+Print the path to a git-wtf worktree. With no argument, shows an interactive
+picker. With a branch name, prints the path directly.
+
+```sh
+git-wtf switch                # interactive picker
+git-wtf switch develop        # print .wtf/develop path
+git-wtf switch work/my-feature
+git-wtf switch my-feature     # short form: tries work/<name> automatically
+```
+
+Intended for shell integration — wrap in a function to `cd`:
+
+```sh
+# Bash / Zsh
+gws() { local p; p="$(git-wtf switch "$@")" && cd "$p"; }
+
+# Fish
+function gws; cd (git-wtf switch $argv); end
+```
+
 ### `version`
 
 Print the current version string.

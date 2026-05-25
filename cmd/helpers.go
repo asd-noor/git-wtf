@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"git-wtf/internal/git"
+	"git-wtf/internal/project"
 )
 
 // mustCwd returns the current working directory or panics.
@@ -70,7 +71,8 @@ func cleanupWorktree(root, mergeDir, worktreeName, branchName string) error {
 		return fmt.Errorf("removing worktree %s: %w", worktreeName, err)
 	}
 	if _, err := git.Cmd(mergeDir, "branch", "-d", branchName); err != nil {
-		return fmt.Errorf("deleting branch %s: %w", branchName, err)
+		fmt.Fprintf(os.Stderr, "  hint: to recover run: git branch -D %s\n", branchName)
+		return fmt.Errorf("worktree removed but could not delete branch %s: %w", branchName, err)
 	}
 	fmt.Printf("✓ Finished %s — worktree removed.\n", branchName)
 	return nil
@@ -149,7 +151,11 @@ func continueFinishWithTag(root, tag, cmdType, branchName, worktreeName string, 
 	}
 
 	// Merge develop if not already done.
-	merged, err := git.IsMerged(root, branchName, "develop")
+	bs, err := project.ReadBranches(root)
+	if err != nil {
+		return err
+	}
+	merged, err := git.IsMerged(root, branchName, bs.Develop)
 	if err != nil {
 		return err
 	}

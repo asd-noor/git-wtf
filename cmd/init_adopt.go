@@ -91,6 +91,11 @@ func runInitAdopt(_ *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Record branch names in git config for use by all subsequent commands.
+	if err := project.WriteBranches(projectDir, bs.Master, bs.Develop); err != nil {
+		return err
+	}
+
 	fmt.Printf("\u2713 Adopted git-wtf project at %s\n", projectDir)
 	fmt.Printf("  master \u2192 %s (root)  |  develop \u2192 %s (.wtf/develop/)\n", bs.Master, bs.Develop)
 	return nil

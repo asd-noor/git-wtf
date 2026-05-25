@@ -49,11 +49,22 @@ func runWorkStart(_ *cobra.Command, args []string) error {
 	}
 
 	worktreeDir := filepath.Join(root, ".wtf", "work", name)
+	branchName := "work/" + name
+
 	if _, err := os.Stat(worktreeDir); err == nil {
 		return fmt.Errorf("work branch '%s' already exists at %s", name, worktreeDir)
 	}
+	// Guard: branch may exist without a worktree (orphaned from partial cleanup).
+	if _, err := git.Cmd(root, "rev-parse", "--verify", "refs/heads/"+branchName); err == nil {
+		return fmt.Errorf("branch %s already exists without a worktree — remove it with: git branch -D %s", branchName, branchName)
+	}
 
-	if _, err := git.Cmd(root, "worktree", "add", ".wtf/work/"+name, "-b", "work/"+name, "develop"); err != nil {
+	bs, err := project.ReadBranches(root)
+	if err != nil {
+		return err
+	}
+
+	if _, err := git.Cmd(root, "worktree", "add", ".wtf/work/"+name, "-b", branchName, bs.Develop); err != nil {
 		return fmt.Errorf("creating work worktree: %w", err)
 	}
 
@@ -87,6 +98,16 @@ func runWorkFinish(_ *cobra.Command, args []string) error {
 					"  cd %s && git add . && git merge --continue\n"+
 					"  then run: git-wtf work finish %s --continue",
 				developDir, name)
+		}
+		// Verify the merge actually landed before removing the branch.
+		bs, err := project.ReadBranches(root)
+		if err != nil {
+			return err
+		}
+		if merged, err := git.IsMerged(root, branchName, bs.Develop); err != nil {
+			return err
+		} else if !merged {
+			return fmt.Errorf("%s has not been merged into develop — complete the merge before using --continue", branchName)
 		}
 		return cleanupWorktree(root, developDir, worktreeName, branchName)
 	}

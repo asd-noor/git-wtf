@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"git-wtf/internal/git"
+	"git-wtf/internal/project"
 )
 
 var initFreshCmd = &cobra.Command{
@@ -80,6 +81,16 @@ func runInitFresh(_ *cobra.Command, args []string) error {
 
 	// 6. Exclude .wtf/ locally without modifying .gitignore.
 	if err := addToExclude(projectDir, ".wtf"); err != nil {
+		return err
+	}
+
+	// Record branch names in git config for use by all subsequent commands.
+	// Read back the actual branch name to stay consistent with what git created.
+	masterName, err := git.CurrentBranch(projectDir)
+	if err != nil {
+		masterName = "master" // symbolic-ref above set this; fallback is safe
+	}
+	if err := project.WriteBranches(projectDir, masterName, "develop"); err != nil {
 		return err
 	}
 
