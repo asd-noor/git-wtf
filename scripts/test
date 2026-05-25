@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#MISE description="Run end-to-end tests against a built binary"
+#MISE depends = ["build"]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+GWT="$PROJECT_ROOT/${OUTDIR:-build}/${BIN:-git-wtf}"
+PROJ="${TMP_DIR:-$HOME/tmp}/git-wtf-e2e-test"
+
+mkdir -p "$(dirname "$PROJ")"
+rm -rf "$PROJ"
+
+PASS=0; FAIL=0
+pass()        { echo "  ✓ $1"; ((PASS++)) || true; }
+fail()        { echo "  ✗ $1"; ((FAIL++)) || true; }
+check_dir()   { [ -d "$1" ]  && pass "$1 exists"  || fail "$1 missing"; }
+check_nodir() { [ ! -d "$1" ] && pass "$1 removed" || fail "$1 still exists"; }
+check_br()    {
+  local a; a=$(git -C "$1" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  [ "$a" = "$2" ] && pass "branch=$2 in $(basename "$1")" || fail "branch: expected $2 got $a"
+}
+expect_err() {
+  local pat=$1; shift
+  local out; out=$("$@" 2>&1 || true)
+  echo "$out" | grep -q "$pat" && pass "rejected: $pat" || { echo "  out: $out"; fail "expected '$pat'"; }
+}
+log_has() {
+  local out; out=$(git -C "$1" log --oneline 2>&1)
+  echo "$out" | grep -q "$2" && pass "log has: $2" || { echo "  log: $out"; fail "log missing: $2"; }
+}
+
+export GIT_AUTHOR_NAME="Test" GIT_AUTHOR_EMAIL="t@t.com"
+export GIT_COMMITTER_NAME="Test" GIT_COMMITTER_EMAIL="t@t.com"
+
+echo "Using binary : $GWT"
+echo "Using tmp dir: $(dirname "$PROJ")"
+echo ""
+
+echo "=== init fresh ==="
+"$GWT" init fresh "$PROJ"
+check_dir "$PROJ/.git"; check_dir "$PROJ/.wtf/develop"; check_nodir "$PROJ/.bare"
+check_br "$PROJ" master; check_br "$PROJ/.wtf/develop" develop
+grep -q 'git-wtf' "$PROJ/.git/config"       && pass "config written"  || fail "config missing"
+grep -q '\.wtf'   "$PROJ/.git/info/exclude" && pass ".wtf in exclude" || fail "exclude missing"
+cd "$PROJ"
+
+echo ""
+echo "=== work start ==="
+"$GWT" work start my-feature
+check_dir "$PROJ/.wtf/work/my-feature"; check_br "$PROJ/.wtf/work/my-feature" "work/my-feature"
+expect_err "already exists" "$GWT" work start my-feature
+
+echo ""
+echo "=== switch (while work worktree is live) ==="
+"$GWT" switch develop         | grep -q '\.wtf/develop'   && pass "switch develop"  || fail "switch develop"
+"$GWT" switch master          | grep -q "$PROJ$"          && pass "switch master"   || fail "switch master"
+"$GWT" switch my-feature      | grep -q 'work/my-feature' && pass "switch bare"     || fail "switch bare"
+"$GWT" switch work/my-feature | grep -q 'work/my-feature' && pass "switch full"     || fail "switch full"
+expect_err "no worktree" "$GWT" switch nonexistent
+
+echo ""
+echo "=== work finish ==="
+echo "feature" > "$PROJ/.wtf/work/my-feature/feature.txt"
+git -C "$PROJ/.wtf/work/my-feature" add feature.txt
+git -C "$PROJ/.wtf/work/my-feature" commit -m "add feature"
+"$GWT" work finish my-feature
+check_nodir "$PROJ/.wtf/work/my-feature"
+log_has "$PROJ/.wtf/develop" "add feature"
+
+echo ""
+echo "=== release start/finish ==="
+"$GWT" release start 1.0.0
+check_dir "$PROJ/.wtf/release/1.0.0"; check_br "$PROJ/.wtf/release/1.0.0" "release/1.0.0"
+"$GWT" switch 1.0.0 | grep -q 'release/1.0.0' && pass "switch release by tag" || fail "switch release"
+expect_err "already exists" "$GWT" release start 1.0.0
+echo "relnotes" > "$PROJ/.wtf/release/1.0.0/notes.txt"
+git -C "$PROJ/.wtf/release/1.0.0" add notes.txt
+git -C "$PROJ/.wtf/release/1.0.0" commit -m "prep 1.0.0"
+"$GWT" release finish 1.0.0
+check_nodir "$PROJ/.wtf/release/1.0.0"
+git -C "$PROJ" tag | grep -q '1.0.0' && pass "tag 1.0.0" || fail "tag 1.0.0 missing"
+log_has "$PROJ/.wtf/develop" "prep 1.0.0"
+
+echo ""
+echo "=== hotfix start/finish ==="
+"$GWT" hotfix start 1.0.1
+check_dir "$PROJ/.wtf/hotfix/1.0.1"; check_br "$PROJ/.wtf/hotfix/1.0.1" "hotfix/1.0.1"
+"$GWT" switch 1.0.1 | grep -q 'hotfix/1.0.1' && pass "switch hotfix by tag" || fail "switch hotfix"
+echo "fix" > "$PROJ/.wtf/hotfix/1.0.1/fix.txt"
+git -C "$PROJ/.wtf/hotfix/1.0.1" add fix.txt
+git -C "$PROJ/.wtf/hotfix/1.0.1" commit -m "fix critical bug"
+"$GWT" hotfix finish 1.0.1
+check_nodir "$PROJ/.wtf/hotfix/1.0.1"
+git -C "$PROJ" tag | grep -q '1.0.1' && pass "tag 1.0.1" || fail "tag 1.0.1 missing"
+log_has "$PROJ/.wtf/develop" "fix critical bug"
+
+echo ""
+echo "=== dirty check ==="
+"$GWT" release start 2.0.0
+echo "modified" >> "$PROJ/.wtf/develop/feature.txt"  # modify tracked file
+expect_err "uncommitted" "$GWT" release finish 2.0.0
+git -C "$PROJ/.wtf/develop" checkout -- .
+"$GWT" release finish 2.0.0
+check_nodir "$PROJ/.wtf/release/2.0.0"
+pass "release finish after clean succeeded"
+
+echo ""
+echo "=== init adopt ==="
+PROJ2="${TMP_DIR:-$HOME/tmp}/git-wtf-adopt-test"
+rm -rf "$PROJ2"
+git init -b master "$PROJ2"
+git -C "$PROJ2" commit --allow-empty -m "init"
+git -C "$PROJ2" checkout -b develop
+git -C "$PROJ2" checkout master
+"$GWT" init adopt "$PROJ2"
+check_dir "$PROJ2/.wtf/develop"
+check_br  "$PROJ2"              master
+check_br  "$PROJ2/.wtf/develop" develop
+grep -q 'git-wtf' "$PROJ2/.git/config" && pass "adopt: config written" || fail "adopt: config missing"
+
+echo ""
+echo "=== final worktrees ==="
+git -C "$PROJ" worktree list
+
+echo ""
+echo "══════════════════════════════════"
+echo "  Passed: $PASS   Failed: $FAIL"
+[ "$FAIL" -eq 0 ] && echo "  ALL TESTS PASSED ✓" || { echo "  SOME TESTS FAILED ✗"; exit 1; }
+echo "══════════════════════════════════"
+
+#vim:ft=bash:
